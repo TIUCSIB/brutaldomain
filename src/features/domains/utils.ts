@@ -77,7 +77,7 @@ export function formatDomainDate(value: string): string {
 }
 
 export function formatProviderLabel(providerId: number | null): string {
-  return providerId === null ? "Unassigned / 未提供" : `#${providerId}`;
+  return providerId === null ? "未分配" : `#${providerId}`;
 }
 
 export function formatExpiry(
@@ -96,7 +96,7 @@ export function formatExpiry(
   if (remaining === null) {
     return {
       label: formatDomainDate(domain.expires_at),
-      detail: "Expiry unavailable / 未提供",
+      detail: "暂无到期信息",
       tone: "blue",
     };
   }
@@ -162,5 +162,5 @@ export function sortDomains(
 export function getErrorMessage(error: unknown): string {
   return error instanceof Error
     ? error.message
-    : "未知错误，请重试 / Unknown error";
+    : "未知错误，请重试";
 }

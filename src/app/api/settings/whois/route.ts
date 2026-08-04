@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   }
 
   if (!isDnsheConfigured()) {
-    return NextResponse.json({ message: "DNSHE API is not configured" }, { status: 503 });
+    return NextResponse.json({ message: "DNSHE is not configured. Set DNSHE_API_KEY and DNSHE_API_SECRET." }, { status: 503 });
   }
 
   const client = createDnsheClient();

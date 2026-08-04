@@ -1,13 +1,7 @@
 "use client";
 
-import { DomainStoreProvider } from "@/features/domains/domain-store";
-
-import { DashboardContent } from "./dashboard-content";
+import { DashboardOverview } from "./dashboard-overview";
 
 export function DashboardClient() {
-  return (
-    <DomainStoreProvider>
-      <DashboardContent />
-    </DomainStoreProvider>
-  );
+  return <DashboardOverview />;
 }

@@ -21,26 +21,25 @@
 
 BrutalDomain is a modern domain operations dashboard built with a **neobrutalist UI language** and a **server-side DNSHE integration layer**. It provides a clean console for managing domains, DNS records, API keys, quota, and WHOIS data, while preserving a safe server boundary for secrets.
 
-BrutalDomain 是一个面向域名运维场景的管理后台，采用 **Neobrutalism** 风格界面，并通过 **服务端代理层** 接入 DNSHE。它支持域名列表、域名详情、DNS 记录管理、API Key 管理、配额查看与 WHOIS 查询，同时确保密钥不会暴露到浏览器端。
+BrutalDomain 是一个面向域名运维场景的管理后台，采用 **Neobrutalism** 风格界面，并通过 **服务端代理层** 接入 DNSHE。它只使用真实 DNSHE 数据，不再提供本地 mock 回退。
 
 ## Highlights
 
 - **Neobrutalist UI** powered by local reusable components
 - **Next.js App Router** architecture ready for Vercel deployment
 - **Server-only DNSHE integration** with `X-API-Key` / `X-API-Secret`
-- **Hybrid runtime mode**:
-  - live DNSHE mode when environment variables are configured
-  - local demo mode when they are not
+- **Real data only**
+  - no local fixture fallback
+  - no demo localStorage store as source of truth
+  - missing DNSHE credentials return a clear configuration error
+- **Protected operator console**
+  - public GitHub OAuth login page at `/`
+  - session cookie gate for dashboard, DNS, settings, and APIs
 - **Domain dashboard** with search, filters, sorting, pagination, and detail views
-- **DNS record CRUD** through internal API routes
 - **Settings console** for:
   - API key management
   - quota lookup
   - WHOIS lookup
-- **Strict maintainability rules**:
-  - reusable UI first
-  - keep component files under 300 lines
-  - avoid exposing secrets to client code
 
 ## Feature Scope
 
@@ -50,7 +49,7 @@ BrutalDomain 是一个面向域名运维场景的管理后台，采用 **Neobrut
 - Domain dashboard
 - Domain detail page
 - Search / filter / sort / pagination
-- Live/mock auto switching
+- Real DNSHE subdomain operations
 
 #### Subdomain actions
 - `subdomains/list`
@@ -64,6 +63,7 @@ BrutalDomain 是一个面向域名运维场景的管理后台，采用 **Neobrut
 - `dns_records/create`
 - `dns_records/update`
 - `dns_records/delete`
+- Domain detail DNS editor with Cloudflare-style name preview
 
 #### Settings console
 - `keys/list`
@@ -75,11 +75,8 @@ BrutalDomain 是一个面向域名运维场景的管理后台，采用 **Neobrut
 
 ### Intentionally excluded
 
-The following capabilities are **not implemented by design** at this stage:
-
 - `permanent_upgrade`
 - undocumented or ambiguous API behaviors
-- GitHub OAuth sign-in flow
 - audit log / webhook integration
 - root-domain pricing or registration catalog pages
 
@@ -106,36 +103,28 @@ src/
   components/
     ui/                   # Local reusable UI primitives
   features/
-    domains/              # Domain store, repository, mock/live adapters
+    domains/              # Domain store and DNSHE repository
     settings/             # Settings API client types and helpers
   lib/
     dnshe/                # DNSHE client, types, mappers
     env/                  # Server-only environment helpers
 ```
 
-## Runtime Modes
+## Runtime Model
 
-### 1. Demo mode
-
-If DNSHE environment variables are missing:
-
-- the app falls back to local demo data
-- dashboard and detail pages remain fully usable for presentation
-- local state is persisted in browser storage
-
-Storage key:
-
-```text
-domain-console.demo-state.v1
-```
-
-### 2. Live DNSHE mode
+This project is **DNSHE-only**.
 
 If DNSHE environment variables are present:
 
 - the app loads real data through internal Next.js API routes
 - browser code never talks to DNSHE directly
 - secrets remain on the server only
+
+If DNSHE environment variables are missing:
+
+- API routes return `503`
+- pages show a clear configuration error
+- the app does **not** fall back to local mock data
 
 Main internal routes:
 
@@ -165,6 +154,36 @@ Main internal routes:
 pnpm install
 ```
 
+### Configure environment
+
+Create a local `.env.local` file:
+
+```bash
+# GitHub OAuth (required to enter the backend)
+GITHUB_CLIENT_ID=your_github_oauth_app_client_id
+GITHUB_CLIENT_SECRET=your_github_oauth_app_client_secret
+AUTH_SECRET=replace-with-a-long-random-string
+# Optional allowlist, comma-separated GitHub usernames
+GITHUB_ALLOWED_USERS=your-github-login
+
+# DNSHE API (required for real domain/DNS data)
+DNSHE_API_BASE_URL=https://api005.dnshe.com/index.php
+DNSHE_API_KEY=your_dnshe_api_key
+DNSHE_API_SECRET=your_dnshe_api_secret
+```
+
+Create a GitHub OAuth App and set the callback URL to:
+
+```text
+http://localhost:3000/api/auth/callback
+```
+
+For production, use your deployed origin, for example:
+
+```text
+https://your-domain.vercel.app/api/auth/callback
+```
+
 ### Start development server
 
 ```bash
@@ -177,17 +196,17 @@ Open:
 http://localhost:3000
 ```
 
+`/` is the public GitHub login page. After OAuth you enter the protected console at `/dashboard`.
+
 ## Environment Variables
 
-Create a local `.env.local` file or configure the same variables in Vercel:
+### Console authentication (GitHub OAuth)
 
-```bash
-DNSHE_API_BASE_URL=https://api005.dnshe.com/index.php
-DNSHE_API_KEY=your_dnshe_api_key
-DNSHE_API_SECRET=your_dnshe_api_secret
-```
+- `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` (**required**) enable GitHub login
+- `AUTH_SECRET` (**required**) signs the session cookie; if omitted it falls back to `DNSHE_API_SECRET`
+- `GITHUB_ALLOWED_USERS` optional comma-separated GitHub usernames; empty means any GitHub user can sign in
 
-Notes:
+### DNSHE API
 
 - `DNSHE_API_BASE_URL` defaults to `https://api005.dnshe.com/index.php`
 - server requests are composed as:
@@ -196,7 +215,7 @@ Notes:
 ?m=domain_hub&endpoint=...&action=...
 ```
 
-- authentication uses request headers:
+- DNSHE authentication uses request headers:
   - `X-API-Key`
   - `X-API-Secret`
 
@@ -206,12 +225,12 @@ Notes:
 
 | Route | Description |
 | --- | --- |
-| `/` | GitHub-style login demo page |
-| `/dashboard` | Main domain overview dashboard |
-| `/domains/[id]` | Domain detail, DNS records, and activity view |
-| `/settings` | API keys, quota, and WHOIS console |
-| `/dns-records` | Placeholder for future global DNS workspace |
-| `/activity` | Placeholder for future global activity timeline |
+| `/` | Public GitHub OAuth login page |
+| `/dashboard` | Protected domain overview dashboard |
+| `/domains` | Protected domain inventory and filters |
+| `/domains/[id]` | Protected domain detail, DNS records, and activity view |
+| `/whois` | Protected WHOIS lookup console |
+| `/settings` | Protected API keys and quota console |
 
 ## Quality Checks
 
@@ -230,13 +249,17 @@ pnpm build
 1. Push the repository to GitHub.
 2. Import the project into Vercel.
 3. Keep the default Next.js settings.
-4. Add the DNSHE environment variables if you want live mode.
-5. Deploy.
+4. Add GitHub OAuth + DNSHE environment variables.
+5. Set the GitHub OAuth App callback URL to `https://<your-domain>/api/auth/callback`.
+6. Deploy.
 
-If no DNSHE variables are configured, the deployed app will still run in demo mode.
+If GitHub OAuth is missing, console routes stay locked behind the login page. If DNSHE variables are missing, authenticated pages show configuration errors instead of mock data.
 
 ## Security Model
 
+- Console pages and domain/settings APIs require a signed session cookie
+- Login uses GitHub OAuth (`/api/auth/github` → `/api/auth/callback`)
+- Optional `GITHUB_ALLOWED_USERS` allowlist restricts who can enter the console
 - DNSHE credentials are read **server-side only**
 - browser code only calls this app's `/api/...` routes
 - all live write actions pass through server route handlers
@@ -255,11 +278,10 @@ This repository follows the project rules defined in `AGENTS.md`:
 
 Potential next steps for the project:
 
-- Global DNS workspace across all domains
 - Global activity timeline with richer filters
 - Better operator/audit metadata when backend support is available
 - Brand assets and product screenshots
-- Optional authentication flow beyond the current demo login page
+- Richer multi-tenant roles beyond the current GitHub allowlist
 
 ## License
 

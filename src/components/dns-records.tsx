@@ -5,18 +5,18 @@ import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
-import type { DomainSource } from "@/features/domains/types";
-import {
-  type CreateDnsRecordInput,
-  type DnsRecord,
-  type UpdateDnsRecordInput,
+import { normalizeDnsRecordName } from "@/features/domains/dns-record-name";
+import type {
+  CreateDnsRecordInput,
+  DnsRecord,
+  UpdateDnsRecordInput,
 } from "@/features/domains/types";
 import { getErrorMessage } from "@/features/domains/utils";
 
+import { RecordDeleteDialog } from "./dns-record-delete-dialog";
 import {
   emptyForm,
   formFromRecord,
-  RecordDeleteDialog,
   RecordEditorDialog,
   type RecordForm,
 } from "./dns-records-dialogs";
@@ -24,16 +24,32 @@ import { DnsRecordsView } from "./dns-records-view";
 
 interface DnsRecordsProps {
   domainId: number;
+  zoneDomain: string;
   records: DnsRecord[];
-  source: DomainSource;
   canWrite: boolean;
   proxyEditing: boolean;
-  createRecord: (domainId: number | string, input: CreateDnsRecordInput) => Promise<DnsRecord>;
-  updateRecord: (domainId: number | string, recordId: string, input: UpdateDnsRecordInput) => Promise<DnsRecord>;
+  createRecord: (
+    domainId: number | string,
+    input: CreateDnsRecordInput,
+  ) => Promise<DnsRecord>;
+  updateRecord: (
+    domainId: number | string,
+    recordId: string,
+    input: UpdateDnsRecordInput,
+  ) => Promise<DnsRecord>;
   deleteRecord: (domainId: number | string, recordId: string) => Promise<void>;
 }
 
-export function DnsRecords({ canWrite, createRecord, deleteRecord, domainId, proxyEditing, records, source, updateRecord }: DnsRecordsProps) {
+export function DnsRecords({
+  canWrite,
+  createRecord,
+  deleteRecord,
+  domainId,
+  proxyEditing,
+  records,
+  updateRecord,
+  zoneDomain,
+}: DnsRecordsProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<DnsRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DnsRecord | null>(null);
@@ -49,7 +65,10 @@ export function DnsRecords({ canWrite, createRecord, deleteRecord, domainId, pro
 
   function openEdit(record: DnsRecord) {
     setEditingRecord(record);
-    setForm(formFromRecord(record));
+    setForm({
+      ...formFromRecord(record),
+      name: normalizeDnsRecordName(record.name, zoneDomain),
+    });
     setDialogOpen(true);
   }
 
@@ -57,19 +76,36 @@ export function DnsRecords({ canWrite, createRecord, deleteRecord, domainId, pro
     event.preventDefault();
     const ttl = Number(form.ttl);
     const priority = form.priority.trim() === "" ? undefined : Number(form.priority);
+    const name = normalizeDnsRecordName(form.name, zoneDomain);
     setSubmitting(true);
 
     try {
       if (editingRecord) {
-        await updateRecord(domainId, editingRecord.id, { type: form.type, name: form.name, content: form.content, ttl, proxied: form.proxied, priority: priority ?? null });
-        toast.success("DNS 记录已更新", { description: `${form.type} ${form.name}` });
+        await updateRecord(domainId, editingRecord.id, {
+          type: form.type,
+          name,
+          content: form.content,
+          ttl,
+          proxied: form.proxied,
+          priority: priority ?? null,
+        });
+        toast.success("DNS 记录已更新", { description: `${form.type} ${name}` });
       } else {
-        await createRecord(domainId, { type: form.type, name: form.name, content: form.content, ttl, proxied: form.proxied, ...(priority === undefined ? {} : { priority }) });
-        toast.success("DNS 记录已添加", { description: `${form.type} ${form.name}` });
+        await createRecord(domainId, {
+          type: form.type,
+          name,
+          content: form.content,
+          ttl,
+          proxied: form.proxied,
+          ...(priority === undefined ? {} : { priority }),
+        });
+        toast.success("DNS 记录已添加", { description: `${form.type} ${name}` });
       }
       setDialogOpen(false);
     } catch (error) {
-      toast.error("Unable to save / 保存失败", { description: getErrorMessage(error) });
+      toast.error("保存失败", {
+        description: getErrorMessage(error),
+      });
     } finally {
       setSubmitting(false);
     }
@@ -80,23 +116,73 @@ export function DnsRecords({ canWrite, createRecord, deleteRecord, domainId, pro
     setDeleting(true);
     try {
       await deleteRecord(domainId, deleteTarget.id);
-      toast.success("DNS 记录已删除", { description: `${deleteTarget.type} ${deleteTarget.name}` });
+      toast.success("DNS 记录已删除", {
+        description: `${deleteTarget.type} ${deleteTarget.name}`,
+      });
       setDeleteTarget(null);
     } catch (error) {
-      toast.error("Unable to delete / 删除失败", { description: getErrorMessage(error) });
+      toast.error("删除失败", {
+        description: getErrorMessage(error),
+      });
     } finally {
       setDeleting(false);
     }
   }
 
   return (
-    <section aria-labelledby="dns-records-title" className="border-2 border-slate-950 bg-white shadow-[5px_5px_0_0_#0f172a]">
-      <div className="flex flex-col gap-4 border-b-2 border-slate-950 bg-blue-50 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5"><div><h2 id="dns-records-title" className="text-xl font-black">DNS Records / 解析记录</h2><p className="mt-1 text-sm font-bold text-slate-600">{records.length} records · {source === "dnshe" ? "Live DNSHE sync" : "Local demo mode"}</p></div><Button type="button" onClick={openCreate} disabled={!canWrite} className="rounded-none border-slate-950 bg-[#1261ff] text-white shadow-[3px_3px_0_0_#0f172a] hover:bg-[#0b46c4] disabled:bg-slate-300 disabled:text-slate-700"><Plus aria-hidden="true" /> Add record / 添加</Button></div>
-      {!canWrite ? <div className="border-b-2 border-slate-950 bg-[#fff7d6] px-4 py-3 text-sm font-bold text-slate-700 sm:px-5">当前数据可查看，但 DNS 写入已关闭。</div> : null}
+    <section
+      aria-labelledby="dns-records-title"
+      className="border-2 border-border bg-secondary-background shadow-shadow"
+    >
+      <div className="flex flex-col gap-2.5 border-b-2 border-border bg-main/10 p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 id="dns-records-title" className="text-lg font-black">
+            解析记录
+          </h2>
+          <p className="mt-0.5 text-xs font-bold text-foreground/70">
+            {records.length} 条记录 · {zoneDomain} · 实时同步 DNSHE
+          </p>
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          onClick={openCreate}
+          disabled={!canWrite}
+        >
+          <Plus aria-hidden="true" /> 添加记录
+        </Button>
+      </div>
+      {!canWrite ? (
+        <div className="border-b-2 border-border bg-[#fff7d6] px-3 py-2 text-xs font-bold text-foreground/80">
+          当前数据可查看，但 DNS 写入已关闭。
+        </div>
+      ) : null}
 
-      <DnsRecordsView canWrite={canWrite} domainId={domainId} onDelete={setDeleteTarget} onEdit={openEdit} records={records} />
-      <RecordEditorDialog editingRecord={editingRecord} form={form} onChange={setForm} onOpenChange={setDialogOpen} onSubmit={handleSubmit} open={dialogOpen} proxyEditing={proxyEditing} submitting={submitting} />
-      <RecordDeleteDialog deleting={deleting} onConfirm={confirmDelete} onOpenChange={(open) => !open && setDeleteTarget(null)} record={deleteTarget} />
+      <DnsRecordsView
+        canWrite={canWrite}
+        domainId={domainId}
+        onDelete={setDeleteTarget}
+        onEdit={openEdit}
+        records={records}
+      />
+      <RecordEditorDialog
+        editingRecord={editingRecord}
+        form={form}
+        onChange={setForm}
+        onOpenChange={setDialogOpen}
+        onSubmit={handleSubmit}
+        open={dialogOpen}
+        proxyEditing={proxyEditing}
+        submitting={submitting}
+        zoneDomain={zoneDomain}
+      />
+      <RecordDeleteDialog
+        deleting={deleting}
+        onConfirm={confirmDelete}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        record={deleteTarget}
+        zoneDomain={zoneDomain}
+      />
     </section>
   );
 }

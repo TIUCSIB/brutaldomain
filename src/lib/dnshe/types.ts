@@ -177,11 +177,11 @@ export interface DnsheDeleteKeyResponse {
   message: string;
 }
 
-export interface DnsheRegenerateKeyBody {
+export interface Dnshe重置密钥KeyBody {
   key_id: number;
 }
 
-export interface DnsheRegenerateKeyResponse {
+export interface Dnshe重置密钥KeyResponse {
   success: true;
   message: string;
   api_key: string;

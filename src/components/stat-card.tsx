@@ -2,6 +2,7 @@ import { createElement, isValidElement, type ReactElement, type ReactNode } from
 import type { LucideIcon } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 export type StatCardTone = "blue" | "yellow" | "green" | "pink" | "neutral";
 
@@ -13,6 +14,8 @@ export interface StatCardProps {
   description?: ReactNode;
   icon?: StatCardIcon;
   tone?: StatCardTone;
+  compact?: boolean;
+  className?: string;
 }
 
 const toneStyles: Record<
@@ -46,12 +49,12 @@ const toneStyles: Record<
   },
 };
 
-function renderIcon(icon: StatCardIcon) {
+function renderIcon(icon: StatCardIcon, compact?: boolean) {
   if (isValidElement(icon)) return icon;
 
   return createElement(icon, {
     "aria-hidden": true,
-    className: "size-6",
+    className: compact ? "size-4" : "size-6",
     strokeWidth: 2.5,
   });
 }
@@ -62,33 +65,70 @@ export function StatCard({
   description,
   icon,
   tone = "blue",
+  compact = false,
+  className,
 }: StatCardProps) {
   const styles = toneStyles[tone];
 
   return (
-    <Card className="group relative overflow-hidden rounded-none border-2 border-slate-950 bg-white py-0 text-slate-950 shadow-[5px_5px_0_0_#0f172a] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5">
-      <div aria-hidden="true" className={`h-2 w-full ${styles.accent}`} />
-      <CardContent className="p-5 sm:p-6">
-        <div className="flex items-start justify-between gap-4">
+    <Card
+      className={cn(
+        "group relative overflow-hidden rounded-none border-2 border-slate-950 bg-white py-0 text-slate-950 transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5",
+        compact
+          ? "shadow-[3px_3px_0_0_#0f172a]"
+          : "shadow-[5px_5px_0_0_#0f172a]",
+        className,
+      )}
+    >
+      <div
+        aria-hidden="true"
+        className={cn("w-full", compact ? "h-1.5" : "h-2", styles.accent)}
+      />
+      <CardContent className={cn(compact ? "p-3.5 sm:p-4" : "p-5 sm:p-6")}>
+        <div className={cn("flex items-start justify-between", compact ? "gap-3" : "gap-4")}>
           <div className="min-w-0">
-            <h3 className="text-sm font-black uppercase tracking-[0.08em] text-slate-600">
+            <h3
+              className={cn(
+                "font-black uppercase tracking-[0.08em] text-slate-600",
+                compact ? "text-[11px]" : "text-sm",
+              )}
+            >
               {title}
             </h3>
-            <div className="mt-3 break-words text-3xl font-black leading-none tracking-tight sm:text-4xl">
+            <div
+              className={cn(
+                "break-words font-black leading-none tracking-tight",
+                compact
+                  ? "mt-2 text-2xl sm:text-3xl"
+                  : "mt-3 text-3xl sm:text-4xl",
+              )}
+            >
               {value}
             </div>
           </div>
           {icon ? (
             <div
               aria-hidden="true"
-              className={`grid size-12 shrink-0 place-items-center border-2 border-slate-950 shadow-[3px_3px_0_0_#0f172a] ${styles.icon}`}
+              className={cn(
+                "grid shrink-0 place-items-center border-2 border-slate-950",
+                compact
+                  ? "size-9 shadow-[2px_2px_0_0_#0f172a]"
+                  : "size-12 shadow-[3px_3px_0_0_#0f172a]",
+                styles.icon,
+              )}
             >
-              {renderIcon(icon)}
+              {renderIcon(icon, compact)}
             </div>
           ) : null}
         </div>
         {description ? (
-          <div className={`mt-4 text-sm font-bold leading-5 ${styles.description}`}>
+          <div
+            className={cn(
+              "font-bold leading-5",
+              compact ? "mt-2.5 text-xs" : "mt-4 text-sm",
+              styles.description,
+            )}
+          >
             {description}
           </div>
         ) : null}

@@ -1,17 +1,7 @@
 import { NextResponse } from "next/server";
 
-import {
-  activitiesFixture,
-  dnsRecordsFixture,
-  domainsFixture,
-} from "@/data/domains";
-import { createMockDomainDetailResponse } from "@/features/domains/domain-repository";
 import { DnsheDomainRepository } from "@/features/domains/dnshe-domain-repository";
-import {
-  deleteDomain,
-  formatDateTime,
-  resetDemoData,
-} from "@/features/domains/mock-domain-repository";
+import { DNSHE_NOT_CONFIGURED_MESSAGE } from "@/lib/api/dnshe-config-error";
 import { isDnsheConfigured } from "@/lib/env/server-env";
 
 export const dynamic = "force-dynamic";
@@ -25,27 +15,18 @@ export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  if (!isDnsheConfigured()) {
+    return NextResponse.json(
+      { message: DNSHE_NOT_CONFIGURED_MESSAGE },
+      { status: 503 },
+    );
+  }
+
   const { id } = await context.params;
   const domainId = getDomainId(id);
 
   if (!domainId) {
     return NextResponse.json({ message: "Invalid domain id" }, { status: 400 });
-  }
-
-  if (!isDnsheConfigured()) {
-    const domain = domainsFixture.find((item) => item.id === domainId);
-
-    if (!domain) {
-      return NextResponse.json({ message: "Domain not found" }, { status: 404 });
-    }
-
-    return NextResponse.json(
-      createMockDomainDetailResponse(
-        domain,
-        dnsRecordsFixture.filter((record) => record.domain_id === domainId),
-        activitiesFixture.filter((activity) => activity.domain_id === domainId),
-      ),
-    );
   }
 
   const repository = new DnsheDomainRepository();
@@ -63,21 +44,18 @@ export async function DELETE(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  if (!isDnsheConfigured()) {
+    return NextResponse.json(
+      { message: DNSHE_NOT_CONFIGURED_MESSAGE },
+      { status: 503 },
+    );
+  }
+
   const { id } = await context.params;
   const domainId = getDomainId(id);
 
   if (!domainId) {
     return NextResponse.json({ message: "Invalid domain id" }, { status: 400 });
-  }
-
-  if (!isDnsheConfigured()) {
-    try {
-      deleteDomain(resetDemoData(), domainId, formatDateTime(new Date()));
-      return NextResponse.json({ success: true });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Delete failed";
-      return NextResponse.json({ message }, { status: 400 });
-    }
   }
 
   const repository = new DnsheDomainRepository();

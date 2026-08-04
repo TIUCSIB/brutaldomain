@@ -13,6 +13,12 @@
   --destructive: #ef3e5b;
   --destructive-foreground: #ffffff;
   --shadow: 4px 4px 0 0 var(--border);
+  /* Neobrutalism chart tokens: https://www.neobrutalism.dev/docs/chart */
+  --chart-1: #1261ff;
+  --chart-2: #66e58a;
+  --chart-3: #ffd84d;
+  --chart-4: #ff5c7a;
+  --chart-5: #0f172a;
 }
 
 @theme inline {
@@ -26,14 +32,21 @@
   --color-overlay: var(--overlay);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
   --radius-base: 0.25rem;
   --shadow-shadow: var(--shadow);
   --font-sans: var(--font-app);
   --font-mono: var(--font-code);
 }
 
-* {
-  border-color: var(--border);
+@layer base {
+  * {
+    @apply border-border;
+  }
 }
 
 html {

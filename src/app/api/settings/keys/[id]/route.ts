@@ -11,7 +11,7 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> },
 ) {
   if (!isDnsheConfigured()) {
-    return NextResponse.json({ message: "DNSHE API is not configured" }, { status: 503 });
+    return NextResponse.json({ message: "DNSHE is not configured. Set DNSHE_API_KEY and DNSHE_API_SECRET." }, { status: 503 });
   }
 
   const { id } = await context.params;

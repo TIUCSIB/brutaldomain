@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 
 import { createDnsheClient } from "@/lib/dnshe/client";
 import type {
-  DnsheRegenerateKeyBody,
-  DnsheRegenerateKeyResponse,
+  Dnshe重置密钥KeyBody,
+  Dnshe重置密钥KeyResponse,
 } from "@/lib/dnshe/types";
 import { isDnsheConfigured } from "@/lib/env/server-env";
 
@@ -14,7 +14,7 @@ export async function POST(
   context: { params: Promise<{ id: string }> },
 ) {
   if (!isDnsheConfigured()) {
-    return NextResponse.json({ message: "DNSHE API is not configured" }, { status: 503 });
+    return NextResponse.json({ message: "DNSHE is not configured. Set DNSHE_API_KEY and DNSHE_API_SECRET." }, { status: 503 });
   }
 
   const { id } = await context.params;
@@ -26,8 +26,8 @@ export async function POST(
 
   const client = createDnsheClient();
   const result = await client.request<
-    DnsheRegenerateKeyResponse,
-    DnsheRegenerateKeyBody
+    Dnshe重置密钥KeyResponse,
+    Dnshe重置密钥KeyBody
   >({
     endpoint: "keys",
     action: "regenerate",

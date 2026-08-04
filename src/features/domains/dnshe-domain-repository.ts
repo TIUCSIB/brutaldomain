@@ -84,7 +84,11 @@ export class DnsheDomainRepository implements DomainRepository {
       page = response.pagination.next_page ?? page + 1;
     }
 
-    return { source: "dnshe", features: DNSHE_DOMAIN_FEATURES, domains, activities: [] };
+    return {
+      features: DNSHE_DOMAIN_FEATURES,
+      domains,
+      activities: [],
+    };
   }
 
   async getDomain(domainId: number): Promise<DomainDetailApiResponse> {
@@ -92,12 +96,17 @@ export class DnsheDomainRepository implements DomainRepository {
     const response = await client.request<DnsheGetSubdomainResponse>({
       endpoint: "subdomains",
       action: "get",
-      query: { subdomain_id: domainId },
+      query: { subdomain_id: domainId, fields: "all" },
     });
     const domain = mapDnsheSubdomain(response.subdomain);
     const dnsRecords = await listDnsRecordsForDomain(domain.id);
 
-    return { source: "dnshe", features: DNSHE_DOMAIN_FEATURES, domain, dnsRecords, activities: [] };
+    return {
+      features: DNSHE_DOMAIN_FEATURES,
+      domain,
+      dnsRecords,
+      activities: [],
+    };
   }
 
   async registerDomain(input: AddDomainInput): Promise<DomainDetailApiResponse> {

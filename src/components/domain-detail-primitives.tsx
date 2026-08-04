@@ -15,17 +15,21 @@ export const statusStyles: Record<DomainStatus, string> = {
 };
 
 export const hardButton =
-  "rounded-none border-slate-950 shadow-[3px_3px_0_0_#0f172a] focus-visible:ring-4 focus-visible:ring-blue-300";
+  "rounded-none border-border shadow-shadow focus-visible:ring-2 focus-visible:ring-ring";
 
 export function LoadingState() {
   return (
-    <AppShell searchValue="" onSearchChange={() => undefined}>
-      <div aria-busy="true" aria-label="Loading domain details" className="mx-auto max-w-7xl space-y-6">
-        <Skeleton className="h-10 w-44 rounded-none border-2 border-slate-950 bg-white" />
-        <Skeleton className="h-44 w-full rounded-none border-2 border-slate-950 bg-white" />
-        <div className="grid gap-5 lg:grid-cols-2">
-          <Skeleton className="h-72 rounded-none border-2 border-slate-950 bg-white" />
-          <Skeleton className="h-72 rounded-none border-2 border-slate-950 bg-white" />
+    <AppShell>
+      <div
+        aria-busy="true"
+        aria-label="正在加载域名详情"
+        className="mx-auto w-full max-w-[1280px] space-y-4"
+      >
+        <Skeleton className="h-8 w-36 rounded-none border-2 border-border bg-secondary-background" />
+        <Skeleton className="h-28 w-full rounded-none border-2 border-border bg-secondary-background" />
+        <div className="grid gap-3 lg:grid-cols-2">
+          <Skeleton className="h-52 rounded-none border-2 border-border bg-secondary-background" />
+          <Skeleton className="h-52 rounded-none border-2 border-border bg-secondary-background" />
         </div>
       </div>
     </AppShell>
@@ -34,15 +38,33 @@ export function LoadingState() {
 
 export function NotFoundState({ id }: { id: string }) {
   return (
-    <AppShell searchValue="" onSearchChange={() => undefined}>
-      <div className="mx-auto grid min-h-[calc(100svh-10rem)] max-w-4xl place-items-center py-8">
-        <section className="relative w-full overflow-hidden border-4 border-slate-950 bg-white p-6 shadow-[9px_9px_0_0_#1261ff] sm:p-10">
-          <span aria-hidden="true" className="absolute -right-10 -top-10 size-40 rotate-12 border-4 border-slate-950 bg-[#ffd84d]" />
+    <AppShell>
+      <div className="mx-auto grid min-h-[calc(100svh-12rem)] max-w-3xl place-items-center py-6">
+        <section className="relative w-full overflow-hidden border-2 border-border bg-secondary-background p-5 shadow-shadow sm:p-7">
+          <span
+            aria-hidden="true"
+            className="absolute -right-8 -top-8 size-28 rotate-12 border-2 border-border bg-[#ffd84d]"
+          />
           <div className="relative max-w-2xl">
-            <p className="font-mono text-sm font-black uppercase tracking-[0.22em] text-blue-700">404 · Domain missing</p>
-            <h1 className="mt-4 text-4xl font-black tracking-[-0.04em] sm:text-6xl">域名没有找到</h1>
-            <p className="mt-5 max-w-xl text-base font-bold leading-7 text-slate-600 sm:text-lg">ID <span className="break-all border-2 border-slate-950 bg-blue-100 px-2 py-1 font-mono text-slate-950">{id}</span> 不存在，或已从当前数据源中移除。</p>
-            <Button asChild className={`mt-8 bg-[#1261ff] text-white hover:bg-[#0b46c4] ${hardButton}`}><Link href="/dashboard"><ArrowLeft />Back to Dashboard / 返回</Link></Button>
+            <p className="font-mono text-xs font-black uppercase tracking-[0.18em] text-main">
+              404 · 域名不存在
+            </p>
+            <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">
+              域名没有找到
+            </h1>
+            <p className="mt-3 max-w-xl text-sm font-bold leading-6 text-foreground/70">
+              ID{" "}
+              <span className="break-all border-2 border-border bg-main/15 px-1.5 py-0.5 font-mono text-foreground">
+                {id}
+              </span>{" "}
+              不存在，或已从当前数据源中移除。
+            </p>
+            <Button asChild size="sm" className={`mt-5 ${hardButton}`}>
+              <Link href="/domains">
+                <ArrowLeft />
+                返回域名清单
+              </Link>
+            </Button>
           </div>
         </section>
       </div>
@@ -50,11 +72,32 @@ export function NotFoundState({ id }: { id: string }) {
   );
 }
 
-export function InfoItem({ icon: Icon, label, value, mono = false }: { icon: typeof Globe2; label: string; value: string; mono?: boolean }) {
+export function InfoItem({
+  icon: Icon,
+  label,
+  value,
+  mono = false,
+}: {
+  icon: typeof Globe2;
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
   return (
-    <div className="flex min-w-0 gap-3 border-b-2 border-slate-200 py-4 last:border-b-0">
-      <span className="grid size-10 shrink-0 place-items-center border-2 border-slate-950 bg-blue-100"><Icon aria-hidden="true" className="size-5" strokeWidth={2.5} /></span>
-      <div className="min-w-0"><dt className="text-xs font-black uppercase tracking-[0.1em] text-slate-500">{label}</dt><dd className={`mt-1 break-all text-sm font-black ${mono ? "font-mono" : ""}`}>{value}</dd></div>
+    <div className="flex min-w-0 gap-2.5 border-b border-border/60 py-2.5 last:border-b-0">
+      <span className="grid size-8 shrink-0 place-items-center border-2 border-border bg-main/15">
+        <Icon aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
+      </span>
+      <div className="min-w-0">
+        <dt className="text-[11px] font-black uppercase tracking-[0.08em] text-foreground/55">
+          {label}
+        </dt>
+        <dd
+          className={`mt-0.5 break-all text-sm font-black ${mono ? "font-mono" : ""}`}
+        >
+          {value}
+        </dd>
+      </div>
     </div>
   );
 }

@@ -4,11 +4,12 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "Domain Console",
-    template: "%s | Domain Console",
+    default: "BrutalDomain",
+    template: "%s | BrutalDomain",
   },
-  description: "A neobrutalist domain management dashboard prototype built for Vercel.",
-  applicationName: "Domain Console",
+  description:
+    "A neobrutalist domain management console with DNSHE integration for domains, DNS records, API keys, quota, and WHOIS.",
+  applicationName: "BrutalDomain",
 };
 
 export const viewport: Viewport = {
@@ -25,10 +26,13 @@ export default function RootLayout({
     <html lang="zh-CN" className="h-full">
       <body
         className="min-h-full"
-        style={{
-          "--font-app": 'Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif',
-          "--font-code": '"SFMono-Regular", Consolas, "Liberation Mono", monospace',
-        } as React.CSSProperties}
+        style={
+          {
+            "--font-app": 'Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif',
+            "--font-code":
+              '"SFMono-Regular", Consolas, "Liberation Mono", monospace',
+          } as React.CSSProperties
+        }
       >
         {children}
       </body>

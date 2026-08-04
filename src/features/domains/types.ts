@@ -7,7 +7,6 @@ export const DOMAIN_STATUSES = [
 ] as const;
 
 export type DomainStatus = (typeof DOMAIN_STATUSES)[number];
-export type DomainSource = "mock" | "dnshe";
 
 export interface Subdomain {
   id: number;
@@ -74,7 +73,6 @@ export const ACTIVITY_ACTIONS = [
   "dns.created",
   "dns.updated",
   "dns.deleted",
-  "demo.reset",
 ] as const;
 
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
@@ -90,10 +88,6 @@ export interface ActivityEntry {
 export interface AddDomainInput {
   subdomain: string;
   rootdomain: string;
-  provider_account_id: number;
-  years?: number;
-  never_expires?: boolean;
-  cloudflare_zone_id?: string;
 }
 
 export interface CreateDnsRecordInput {
@@ -114,7 +108,7 @@ export interface UpdateDnsRecordInput {
   priority?: number | null;
 }
 
-export interface DomainDemoState {
+export interface DomainState {
   domains: Subdomain[];
   dnsRecords: DnsRecord[];
   activities: ActivityEntry[];
@@ -131,14 +125,12 @@ export interface DomainFeatures {
 }
 
 export interface DomainListApiResponse {
-  source: DomainSource;
   features: DomainFeatures;
   domains: Subdomain[];
   activities: ActivityEntry[];
 }
 
 export interface DomainDetailApiResponse {
-  source: DomainSource;
   features: DomainFeatures;
   domain: Subdomain;
   dnsRecords: DnsRecord[];
@@ -146,18 +138,22 @@ export interface DomainDetailApiResponse {
 }
 
 export interface DomainStoreValue {
-  source: DomainSource;
   features: DomainFeatures;
   domains: Subdomain[];
   activities: ActivityEntry[];
   hydrated: boolean;
   loading: boolean;
   initialized: boolean;
+  error: string | null;
   getDomain: (id: number | string) => Subdomain | undefined;
   getDnsRecords: (domainId: number | string) => DnsRecord[];
+  hasDomainDetailCache: (id: number | string) => boolean;
   isDomainDetailLoading: (id: number | string) => boolean;
   refreshDomains: () => Promise<void>;
-  refreshDomainDetail: (id: number | string) => Promise<Subdomain | undefined>;
+  refreshDomainDetail: (
+    id: number | string,
+    options?: { force?: boolean },
+  ) => Promise<Subdomain | undefined>;
   addDomain: (input: AddDomainInput) => Promise<Subdomain>;
   deleteDomain: (id: number | string) => Promise<void>;
   renewDomain: (id: number | string, years?: number) => Promise<Subdomain>;
@@ -172,5 +168,4 @@ export interface DomainStoreValue {
     input: UpdateDnsRecordInput,
   ) => Promise<DnsRecord>;
   deleteDnsRecord: (domainId: number | string, recordId: string) => Promise<void>;
-  resetDemoData: () => void;
 }

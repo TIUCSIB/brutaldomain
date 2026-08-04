@@ -31,50 +31,55 @@ const expiryStyles = {
 
 export function DomainMobileList({ domains }: DomainMobileListProps) {
   return (
-    <ul className="grid gap-4 lg:hidden" aria-label="Domain list / 域名列表">
+    <ul className="grid gap-2.5 lg:hidden" aria-label="域名列表">
       {domains.map((domain) => {
         const expiry = formatExpiry(domain);
         return (
           <li
             key={domain.id}
-            className="border-2 border-slate-950 bg-white p-4 shadow-[4px_4px_0_0_#0f172a]"
+            className="border-2 border-border bg-secondary-background p-3 shadow-shadow"
           >
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <Link
                   href={`/domains/${domain.id}`}
-                  className="break-all text-lg font-black text-blue-700 underline decoration-2 underline-offset-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
+                  className="break-all text-base font-black text-main underline decoration-2 underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {domain.full_domain}
                 </Link>
-                <p className="mt-1 text-xs font-bold text-slate-500">ID {domain.id}</p>
+                <p className="mt-0.5 text-[11px] font-bold text-foreground/55">
+                  ID {domain.id}
+                </p>
               </div>
               <DomainActions domain={domain} />
             </div>
 
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
               <Badge
-                className={`rounded-none border-slate-950 shadow-[2px_2px_0_0_#0f172a] ${statusStyles[domain.status]}`}
+                className={`rounded-none border-border shadow-shadow ${statusStyles[domain.status]}`}
               >
                 {domain.status}
               </Badge>
-              <span className="inline-flex items-center gap-1 border-2 border-slate-950 bg-blue-50 px-2 py-0.5 text-xs font-black">
-                <Server aria-hidden="true" className="size-3.5" />
+              <span className="inline-flex items-center gap-1 border-2 border-border bg-main/10 px-1.5 py-0.5 text-[11px] font-black">
+                <Server aria-hidden="true" className="size-3" />
                 {formatProviderLabel(domain.provider_account_id)}
               </span>
             </div>
 
-            <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-              <div className={`border-2 p-3 ${expiryStyles[expiry.tone]}`}>
-                <dt className="flex items-center gap-1.5 text-xs font-black uppercase">
-                  <CalendarClock aria-hidden="true" className="size-4" /> Expires / 到期
+            <dl className="mt-2.5 grid gap-2 text-xs sm:grid-cols-2">
+              <div className={`border-2 p-2 ${expiryStyles[expiry.tone]}`}>
+                <dt className="flex items-center gap-1 text-[11px] font-black uppercase">
+                  <CalendarClock aria-hidden="true" className="size-3.5" />{" "}
+                  到期时间
                 </dt>
-                <dd className="mt-1 font-black">{expiry.label}</dd>
-                <dd className="text-xs font-bold">{expiry.detail}</dd>
+                <dd className="mt-0.5 font-black">{expiry.label}</dd>
+                <dd className="text-[11px] font-bold">{expiry.detail}</dd>
               </div>
-              <div className="border-2 border-slate-950 bg-slate-50 p-3">
-                <dt className="text-xs font-black uppercase">Created / 创建</dt>
-                <dd className="mt-1 font-bold">{formatDomainDate(domain.created_at)}</dd>
+              <div className="border-2 border-border bg-muted/40 p-2">
+                <dt className="text-[11px] font-black uppercase">创建时间</dt>
+                <dd className="mt-0.5 font-bold">
+                  {formatDomainDate(domain.created_at)}
+                </dd>
               </div>
             </dl>
           </li>

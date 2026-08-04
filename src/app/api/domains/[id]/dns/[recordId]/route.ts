@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { DnsheDomainRepository } from "@/features/domains/dnshe-domain-repository";
 import type { UpdateDnsRecordInput } from "@/features/domains/types";
+import { DNSHE_NOT_CONFIGURED_MESSAGE } from "@/lib/api/dnshe-config-error";
 import { isDnsheConfigured } from "@/lib/env/server-env";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ export async function PATCH(
 ) {
   if (!isDnsheConfigured()) {
     return NextResponse.json(
-      { message: "DNSHE API is not configured" },
+      { message: DNSHE_NOT_CONFIGURED_MESSAGE },
       { status: 503 },
     );
   }
@@ -47,7 +48,7 @@ export async function DELETE(
 ) {
   if (!isDnsheConfigured()) {
     return NextResponse.json(
-      { message: "DNSHE API is not configured" },
+      { message: DNSHE_NOT_CONFIGURED_MESSAGE },
       { status: 503 },
     );
   }

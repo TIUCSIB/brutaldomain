@@ -42,12 +42,12 @@ export function DomainTable({ domains }: DomainTableProps) {
       <Table className="min-w-[880px]">
         <TableHeader className="bg-[#1261ff] text-white [&_tr]:border-slate-950">
           <TableRow className="border-slate-950 hover:bg-[#1261ff]">
-            <TableHead className="text-white">Domain / 域名</TableHead>
-            <TableHead className="text-white">Status / 状态</TableHead>
+            <TableHead className="text-white">域名</TableHead>
+            <TableHead className="text-white">状态</TableHead>
             <TableHead className="text-white">Provider</TableHead>
-            <TableHead className="text-white">Expires / 到期</TableHead>
-            <TableHead className="text-white">Created / 创建</TableHead>
-            <TableHead className="text-right text-white">Actions / 操作</TableHead>
+            <TableHead className="text-white">到期时间</TableHead>
+            <TableHead className="text-white">创建时间</TableHead>
+            <TableHead className="text-right text-white">操作</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

@@ -1,13 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { activitiesFixture, dnsRecordsFixture } from "@/data/domains";
-import { createMockDomainDetailResponse } from "@/features/domains/domain-repository";
 import { DnsheDomainRepository } from "@/features/domains/dnshe-domain-repository";
-import {
-  formatDateTime,
-  renewDomain,
-  resetDemoData,
-} from "@/features/domains/mock-domain-repository";
+import { DNSHE_NOT_CONFIGURED_MESSAGE } from "@/lib/api/dnshe-config-error";
 import { isDnsheConfigured } from "@/lib/env/server-env";
 
 export const dynamic = "force-dynamic";
@@ -21,32 +15,18 @@ export async function POST(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  if (!isDnsheConfigured()) {
+    return NextResponse.json(
+      { message: DNSHE_NOT_CONFIGURED_MESSAGE },
+      { status: 503 },
+    );
+  }
+
   const { id } = await context.params;
   const domainId = getDomainId(id);
 
   if (!domainId) {
     return NextResponse.json({ message: "Invalid domain id" }, { status: 400 });
-  }
-
-  if (!isDnsheConfigured()) {
-    try {
-      const result = renewDomain(
-        resetDemoData(),
-        domainId,
-        1,
-        formatDateTime(new Date()),
-      );
-      return NextResponse.json(
-        createMockDomainDetailResponse(
-          result.value,
-          dnsRecordsFixture.filter((record) => record.domain_id === domainId),
-          activitiesFixture.filter((activity) => activity.domain_id === domainId),
-        ),
-      );
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Renew failed";
-      return NextResponse.json({ message }, { status: 400 });
-    }
   }
 
   const repository = new DnsheDomainRepository();

@@ -1,103 +1,63 @@
-import type {
-  ActivityAction,
-  ActivityEntry,
-  DnsRecord,
-  DomainDemoState,
-  Subdomain,
-} from "./types";
+import type { DnsRecord, DomainState, Subdomain } from "./types";
 
-export function createEmptyDomainState(): DomainDemoState {
+/** Prefer incoming values, but keep known fields when detail payload omits them. */
+export function mergeSubdomainRecord(
+  existing: Subdomain | undefined,
+  incoming: Subdomain,
+): Subdomain {
+  if (!existing) return incoming;
+
   return {
-    domains: [],
-    dnsRecords: [],
-    activities: [],
+    ...existing,
+    ...incoming,
+    provider_account_id:
+      incoming.provider_account_id ?? existing.provider_account_id,
+    cloudflare_zone_id:
+      incoming.cloudflare_zone_id ?? existing.cloudflare_zone_id,
+    created_at: incoming.created_at || existing.created_at,
+    updated_at: incoming.updated_at || existing.updated_at,
+    expires_at: incoming.expires_at || existing.expires_at,
   };
 }
 
-export function prependActivity(
-  state: DomainDemoState,
-  activity: ActivityEntry,
-): DomainDemoState {
+export function mergeDomain(state: DomainState, domain: Subdomain): DomainState {
+  const existing = state.domains.find((item) => item.id === domain.id);
+  const merged = mergeSubdomainRecord(existing, domain);
+
   return {
     ...state,
-    activities: [activity, ...state.activities],
+    domains: existing
+      ? state.domains.map((item) => (item.id === domain.id ? merged : item))
+      : [...state.domains, merged],
   };
-}
-
-export function createClientActivity(
-  action: ActivityAction,
-  domainId: number | null,
-  message: string,
-): ActivityEntry {
-  const now = new Date();
-  const stamp = now.toISOString().replace("T", " ").slice(0, 19);
-
-  return {
-    id: `client-${action}-${now.getTime()}`,
-    domain_id: domainId,
-    action,
-    message,
-    created_at: stamp,
-  };
-}
-
-export function mergeDomain(
-  state: DomainDemoState,
-  nextDomain: Subdomain,
-): DomainDemoState {
-  const existingIndex = state.domains.findIndex(
-    (domain) => domain.id === nextDomain.id,
-  );
-
-  if (existingIndex === -1) {
-    return { ...state, domains: [...state.domains, nextDomain] };
-  }
-
-  const domains = [...state.domains];
-  domains[existingIndex] = nextDomain;
-  return { ...state, domains };
-}
-
-export function replaceDomains(
-  state: DomainDemoState,
-  domains: Subdomain[],
-): DomainDemoState {
-  return { ...state, domains };
 }
 
 export function replaceDnsRecords(
-  state: DomainDemoState,
+  state: DomainState,
   domainId: number,
-  dnsRecords: DnsRecord[],
-): DomainDemoState {
-  const remaining = state.dnsRecords.filter(
-    (record) => record.domain_id !== domainId,
-  );
-
+  records: DnsRecord[],
+): DomainState {
   return {
     ...state,
-    dnsRecords: [...remaining, ...dnsRecords],
+    dnsRecords: [
+      ...state.dnsRecords.filter((record) => record.domain_id !== domainId),
+      ...records,
+    ],
   };
 }
 
-export function upsertDnsRecord(
-  state: DomainDemoState,
-  nextRecord: DnsRecord,
-): DomainDemoState {
-  const remaining = state.dnsRecords.filter(
-    (record) => record.id !== nextRecord.id,
-  );
+export function upsertDnsRecord(state: DomainState, record: DnsRecord): DomainState {
+  const exists = state.dnsRecords.some((item) => item.id === record.id);
 
   return {
     ...state,
-    dnsRecords: [...remaining, nextRecord],
+    dnsRecords: exists
+      ? state.dnsRecords.map((item) => (item.id === record.id ? record : item))
+      : [...state.dnsRecords, record],
   };
 }
 
-export function removeDnsRecord(
-  state: DomainDemoState,
-  recordId: string,
-): DomainDemoState {
+export function removeDnsRecord(state: DomainState, recordId: string): DomainState {
   return {
     ...state,
     dnsRecords: state.dnsRecords.filter((record) => record.id !== recordId),
