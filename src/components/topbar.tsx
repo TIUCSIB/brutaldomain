@@ -3,8 +3,9 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { Bell, ChevronDown, Code2, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Settings, UserRound } from 'lucide-react'
+import { ChevronDown, Code2, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Settings, UserRound } from 'lucide-react'
 
+import { ExpiryNotifications } from '@/components/expiry-notifications'
 import { Sidebar } from '@/components/sidebar'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -107,16 +108,7 @@ export function Topbar({ sidebarCollapsed, onSidebarCollapsedChange }: TopbarPro
       <div className="min-w-0 flex-1" aria-hidden="true" />
 
       <div className="ml-auto flex shrink-0 items-center gap-2">
-        <TooltipProvider delayDuration={250}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button type="button" variant="outline" size="icon" aria-label="通知" className="relative size-9 shrink-0 rounded-none border-2 border-border bg-secondary-background shadow-shadow">
-                <Bell className="size-4" strokeWidth={2.5} />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>通知</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <ExpiryNotifications />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

@@ -1,11 +1,15 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { Plus } from "lucide-react";
+import { useMemo, useState, type FormEvent } from "react";
+import { Plus, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
 import { normalizeDnsRecordName } from "@/features/domains/dns-record-name";
+import {
+  applyDnsTemplate,
+  DNS_TEMPLATES,
+} from "@/features/domains/dns-templates";
 import type {
   CreateDnsRecordInput,
   DnsRecord,
@@ -56,10 +60,27 @@ export function DnsRecords({
   const [form, setForm] = useState<RecordForm>(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [query, setQuery] = useState("");
 
-  function openCreate() {
+  const visibleRecords = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return records;
+    return records.filter((record) =>
+      [record.type, record.name, record.content, String(record.ttl)]
+        .join(" ")
+        .toLowerCase()
+        .includes(q),
+    );
+  }, [query, records]);
+
+  function openCreate(templateId?: string) {
     setEditingRecord(null);
-    setForm(emptyForm);
+    const template = DNS_TEMPLATES.find((item) => item.id === templateId);
+    setForm(
+      template
+        ? applyDnsTemplate(template, zoneDomain, emptyForm)
+        : emptyForm,
+    );
     setDialogOpen(true);
   }
 
@@ -141,12 +162,13 @@ export function DnsRecords({
           </h2>
           <p className="mt-0.5 text-xs font-bold text-foreground/70">
             {records.length} 条记录 · {zoneDomain} · 实时同步 DNSHE
+            {query.trim() ? ` · 筛选 ${visibleRecords.length}` : ""}
           </p>
         </div>
         <Button
           type="button"
           size="sm"
-          onClick={openCreate}
+          onClick={() => openCreate()}
           disabled={!canWrite}
         >
           <Plus aria-hidden="true" /> 添加记录
@@ -158,12 +180,48 @@ export function DnsRecords({
         </div>
       ) : null}
 
+      <div className="flex flex-col gap-2 border-b-2 border-border p-3">
+        <div className="relative max-w-sm">
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-main"
+          />
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="搜索类型 / 名称 / 内容…"
+            className="h-9 w-full rounded-none border-2 border-border bg-secondary-background pl-8 pr-3 text-xs font-bold shadow-shadow outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+        </div>
+        {canWrite ? (
+          <div className="flex flex-wrap gap-1.5">
+            <span className="self-center text-[11px] font-black text-foreground/60">
+              模板
+            </span>
+            {DNS_TEMPLATES.map((template) => (
+              <Button
+                key={template.id}
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 rounded-none px-2 text-[11px]"
+                title={template.description}
+                onClick={() => openCreate(template.id)}
+              >
+                {template.label}
+              </Button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
       <DnsRecordsView
         canWrite={canWrite}
         domainId={domainId}
         onDelete={setDeleteTarget}
         onEdit={openEdit}
-        records={records}
+        records={visibleRecords}
       />
       <RecordEditorDialog
         editingRecord={editingRecord}

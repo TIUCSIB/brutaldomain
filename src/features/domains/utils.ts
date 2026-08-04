@@ -7,6 +7,8 @@ export type ProviderFilter = number | "all";
 export type ExpiryRiskFilter =
   | "all"
   | "expired"
+  | "within-7"
+  | "within-30"
   | "within-90"
   | "healthy"
   | "never";
@@ -58,11 +60,88 @@ export function matchesExpiryRisk(
   const remaining = getExpiryDays(domain, now);
   if (remaining === null) return false;
   if (risk === "expired") return remaining < 0;
+  if (risk === "within-7") {
+    return remaining >= 0 && remaining <= 7;
+  }
+  if (risk === "within-30") {
+    return remaining >= 0 && remaining <= 30;
+  }
   if (risk === "within-90") {
     return remaining >= 0 && remaining <= EXPIRY_WINDOW_DAYS;
   }
 
   return remaining > EXPIRY_WINDOW_DAYS;
+}
+
+export function isExpiryRiskFilter(value: string): value is ExpiryRiskFilter {
+  return (
+    value === "all" ||
+    value === "expired" ||
+    value === "within-7" ||
+    value === "within-30" ||
+    value === "within-90" ||
+    value === "healthy" ||
+    value === "never"
+  );
+}
+
+export function isDomainSort(value: string): value is DomainSort {
+  return (
+    value === "expiry-asc" ||
+    value === "expiry-desc" ||
+    value === "created-desc" ||
+    value === "created-asc" ||
+    value === "domain-asc" ||
+    value === "domain-desc"
+  );
+}
+
+export function isStatusFilter(value: string): value is StatusFilter {
+  return (
+    value === "all" ||
+    value === "Registered" ||
+    value === "Pending" ||
+    value === "Suspended" ||
+    value === "Expired" ||
+    value === "Error"
+  );
+}
+
+export function domainsToCsv(domains: readonly Subdomain[]): string {
+  const header = [
+    "id",
+    "full_domain",
+    "subdomain",
+    "rootdomain",
+    "status",
+    "expires_at",
+    "never_expires",
+    "provider_account_id",
+    "created_at",
+    "updated_at",
+  ];
+  const escape = (value: string | number | null) => {
+    const text = value === null || value === undefined ? "" : String(value);
+    if (/[",\n]/.test(text)) return `"${text.replaceAll('"', '""')}"`;
+    return text;
+  };
+  const rows = domains.map((domain) =>
+    [
+      domain.id,
+      domain.full_domain,
+      domain.subdomain,
+      domain.rootdomain,
+      domain.status,
+      domain.expires_at,
+      domain.never_expires,
+      domain.provider_account_id,
+      domain.created_at,
+      domain.updated_at,
+    ]
+      .map(escape)
+      .join(","),
+  );
+  return [header.join(","), ...rows].join("\n");
 }
 
 export function formatDomainDate(value: string): string {

@@ -168,6 +168,8 @@ export function DomainFilters({
             <SelectContent className={contentClassName}>
               <SelectItem value="all">全部风险</SelectItem>
               <SelectItem value="expired">已过期</SelectItem>
+              <SelectItem value="within-7">7 天内到期</SelectItem>
+              <SelectItem value="within-30">30 天内到期</SelectItem>
               <SelectItem value="within-90">90 天内到期</SelectItem>
               <SelectItem value="healthy">状态正常</SelectItem>
               <SelectItem value="never">永不过期</SelectItem>

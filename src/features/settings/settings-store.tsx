@@ -31,6 +31,8 @@ export interface SettingsStoreValue {
   loading: boolean;
   error: string | null;
   initialized: boolean;
+  /** Epoch ms of last successful keys+quota fetch; null if never. */
+  lastSyncedAt: number | null;
   refreshSettings: (options?: { force?: boolean }) => Promise<void>;
   createApiKey: (input: {
     key_name: string;
@@ -51,6 +53,7 @@ export function SettingsStoreProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
 
   const bootstrapStartedRef = useRef(false);
   const inFlightRef = useRef<Promise<void> | null>(null);
@@ -85,6 +88,7 @@ export function SettingsStoreProvider({ children }: { children: ReactNode }) {
         setQuota(quotaResult.quota);
         setError(null);
         setInitialized(true);
+        setLastSyncedAt(Date.now());
       } catch (caught) {
         const message =
           caught instanceof Error ? caught.message : "设置加载失败";
@@ -152,6 +156,7 @@ export function SettingsStoreProvider({ children }: { children: ReactNode }) {
       loading,
       error,
       initialized,
+      lastSyncedAt,
       refreshSettings,
       createApiKey,
       regenerateApiKey,
@@ -165,6 +170,7 @@ export function SettingsStoreProvider({ children }: { children: ReactNode }) {
       error,
       initialized,
       keys,
+      lastSyncedAt,
       latestSecret,
       loading,
       quota,

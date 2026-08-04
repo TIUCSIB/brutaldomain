@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { Check, Copy, Eye, EyeOff } from "lucide-react";
+import type { FormEvent } from "react";
 
+import { SensitiveValue } from "@/components/sensitive-value";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "@/components/ui/sonner";
 import type {
   SettingsApiKey,
   SettingsKeySecretResponse,
@@ -29,68 +28,8 @@ export interface SettingsApiPanelProps {
   onDelete: (keyId: number) => void;
 }
 
-function maskApiKey(value: string) {
-  if (value.length <= 12) {
-    return `${value.slice(0, 4)}******${value.slice(-2)}`;
-  }
-
-  const prefixEnd = value.indexOf("_");
-  const prefix =
-    prefixEnd > 0 && prefixEnd <= 8
-      ? value.slice(0, Math.min(prefixEnd + 4, 12))
-      : value.slice(0, 8);
-
-  return `${prefix}******${value.slice(-4)}`;
-}
-
 function isActiveStatus(status: string) {
   return status.trim().toLowerCase() === "active";
-}
-
-function ApiKeyCell({ value }: { value: string }) {
-  const [visible, setVisible] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      toast.success("密钥已复制");
-      window.setTimeout(() => setCopied(false), 1500);
-    } catch {
-      toast.error("复制失败");
-    }
-  }
-
-  return (
-    <div className="flex min-w-0 items-center gap-1">
-      <code className="max-w-[14rem] truncate font-mono text-[11px] sm:max-w-[18rem]">
-        {visible ? value : maskApiKey(value)}
-      </code>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="size-7 shrink-0"
-        onClick={() => setVisible((current) => !current)}
-        aria-label={visible ? "隐藏密钥" : "显示密钥"}
-        title={visible ? "隐藏" : "显示"}
-      >
-        {visible ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-      </Button>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="size-7 shrink-0"
-        onClick={() => void handleCopy()}
-        aria-label="复制密钥"
-        title="复制"
-      >
-        {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-      </Button>
-    </div>
-  );
 }
 
 function StatusCell({ status }: { status: string }) {
@@ -184,14 +123,24 @@ export function SettingsApiPanel({
         </form>
 
         {latestSecret ? (
-          <div className="mt-3 border-2 border-border bg-[#fff7d6] p-3 text-xs font-bold">
-            <p>
-              API Key: <code>{latestSecret.api_key}</code>
-            </p>
-            <p className="mt-1.5">
-              API Secret: <code>{latestSecret.api_secret}</code>
-            </p>
-            <p className="mt-1.5 text-foreground/70">
+          <div className="mt-3 space-y-2 border-2 border-border bg-[#fff7d6] p-3 text-xs font-bold">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="shrink-0">API Key:</span>
+              <SensitiveValue
+                value={latestSecret.api_key}
+                kind="key"
+                copyLabel="API Key 已复制"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="shrink-0">API Secret:</span>
+              <SensitiveValue
+                value={latestSecret.api_secret}
+                kind="secret"
+                copyLabel="API Secret 已复制"
+              />
+            </div>
+            <p className="text-foreground/70">
               {latestSecret.warning || "Secret 仅显示一次，请立即保存。"}
             </p>
           </div>
@@ -216,12 +165,18 @@ export function SettingsApiPanel({
                 <tr key={item.id} className="border-t-2 border-border">
                   <td className="px-2.5 py-2 font-black">{item.key_name}</td>
                   <td className="px-2.5 py-2">
-                    <ApiKeyCell value={item.api_key} />
+                    <SensitiveValue
+                      value={item.api_key}
+                      kind="key"
+                      copyLabel="密钥已复制"
+                    />
                   </td>
                   <td className="px-2.5 py-2">
                     <StatusCell status={item.status} />
                   </td>
-                  <td className="px-2.5 py-2 font-bold">{item.request_count}</td>
+                  <td className="px-2.5 py-2 font-bold">
+                    {item.request_count}
+                  </td>
                   <td className="px-2.5 py-2">
                     <div className="flex flex-wrap gap-1.5">
                       <Button

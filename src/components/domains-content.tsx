@@ -1,48 +1,51 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  RefreshCw,
-  SearchX,
-} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Download, RefreshCw, SearchX } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { ConfigErrorBanner } from "@/components/config-error-banner";
 import { DomainFilters } from "@/components/domain-filters";
 import { DomainFormDialog } from "@/components/domain-form-dialog";
+import { DomainListPagination } from "@/components/domain-list-pagination";
 import { DomainMobileList } from "@/components/domain-mobile-list";
 import { DomainTable } from "@/components/domain-table";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
+import {
+  applyDomainListParamPatch,
+  readDomainListParams,
+} from "@/features/domains/domain-list-params";
 import { useDomainStore } from "@/features/domains/domain-store";
 import {
+  domainsToCsv,
   formatProviderLabel,
   getErrorMessage,
   matchesExpiryRisk,
   sortDomains,
-  type DomainSort,
-  type ExpiryRiskFilter,
-  type ProviderFilter,
-  type StatusFilter,
 } from "@/features/domains/utils";
 
-const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
-type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
-
 export function DomainsContent() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { domains, error, features, hydrated, initialized, loading, refreshDomains } =
     useDomainStore();
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<StatusFilter>("all");
-  const [provider, setProvider] = useState<ProviderFilter>("all");
-  const [expiryRisk, setExpiryRisk] = useState<ExpiryRiskFilter>("all");
-  const [sort, setSort] = useState<DomainSort>("expiry-asc");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<PageSize>(20);
+
+  const { search, status, provider, expiryRisk, sort, page, pageSize } =
+    readDomainListParams(searchParams);
   const [refreshing, setRefreshing] = useState(false);
+
+  const setParams = useCallback(
+    (patch: Record<string, string | null>, options?: { resetPage?: boolean }) => {
+      const next = applyDomainListParamPatch(searchParams, patch, options);
+      const qs = next.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
 
   const providers = useMemo(
     () =>
@@ -89,20 +92,22 @@ export function DomainsContent() {
     currentPage * pageSize,
   );
   const filtersActive =
-    status !== "all" || provider !== "all" || expiryRisk !== "all" || sort !== "expiry-asc";
+    status !== "all" ||
+    provider !== "all" ||
+    expiryRisk !== "all" ||
+    sort !== "expiry-asc" ||
+    Boolean(search.trim());
 
-  function resetPage<T>(setter: (value: T) => void, value: T) {
-    setter(value);
-    setPage(1);
-  }
+  useEffect(() => {
+    if (page !== currentPage) {
+      setParams({ page: currentPage === 1 ? null : String(currentPage) }, {
+        resetPage: false,
+      });
+    }
+  }, [currentPage, page, setParams]);
 
   function resetFilters() {
-    setSearch("");
-    setStatus("all");
-    setProvider("all");
-    setExpiryRisk("all");
-    setSort("expiry-asc");
-    setPage(1);
+    router.replace(pathname, { scroll: false });
   }
 
   async function handleRefresh() {
@@ -117,6 +122,24 @@ export function DomainsContent() {
     }
   }
 
+  function handleExport() {
+    if (filteredDomains.length === 0) {
+      toast.error("没有可导出的域名");
+      return;
+    }
+    const csv = domainsToCsv(filteredDomains);
+    const blob = new Blob([`\uFEFF${csv}`], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `domains-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    toast.success(`已导出 ${filteredDomains.length} 条`);
+  }
+
   return (
     <AppShell>
       <div className="mx-auto w-full max-w-[1280px] space-y-4">
@@ -126,6 +149,16 @@ export function DomainsContent() {
           description="筛选并管理全部 DNSHE 域名，进入详情可编辑解析记录。"
           actions={
             <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleExport}
+                disabled={filteredDomains.length === 0}
+              >
+                <Download />
+                导出
+              </Button>
               <Button
                 type="button"
                 variant="outline"
@@ -151,11 +184,21 @@ export function DomainsContent() {
           sort={sort}
           providers={providers}
           active={filtersActive}
-          onSearchChange={(value) => resetPage(setSearch, value)}
-          onStatusChange={(value) => resetPage(setStatus, value)}
-          onProviderChange={(value) => resetPage(setProvider, value)}
-          onExpiryRiskChange={(value) => resetPage(setExpiryRisk, value)}
-          onSortChange={(value) => resetPage(setSort, value)}
+          onSearchChange={(value) => setParams({ q: value || null })}
+          onStatusChange={(value) =>
+            setParams({ status: value === "all" ? null : value })
+          }
+          onProviderChange={(value) =>
+            setParams({
+              provider: value === "all" ? null : String(value),
+            })
+          }
+          onExpiryRiskChange={(value) =>
+            setParams({ risk: value === "all" ? null : value })
+          }
+          onSortChange={(value) =>
+            setParams({ sort: value === "expiry-asc" ? null : value })
+          }
           onReset={resetFilters}
         />
 
@@ -193,7 +236,7 @@ export function DomainsContent() {
                     ? "请先解决上方的 DNSHE 配置或请求错误。"
                     : "请调整搜索词或筛选条件。"}
                 </p>
-                {!error && (filtersActive || search) ? (
+                {!error && filtersActive ? (
                   <Button
                     type="button"
                     variant="outline"
@@ -204,7 +247,7 @@ export function DomainsContent() {
                     清除全部
                   </Button>
                 ) : null}
-                {!error && !filtersActive && !search && features.domainCreate ? (
+                {!error && !filtersActive && features.domainCreate ? (
                   <div className="mt-3">
                     <DomainFormDialog />
                   </div>
@@ -213,51 +256,34 @@ export function DomainsContent() {
             </div>
           )}
 
-          <nav
-            aria-label="域名分页"
-            className="flex flex-col gap-2 border-2 border-border bg-secondary-background p-2.5 shadow-shadow sm:flex-row sm:items-center sm:justify-between"
-          >
-            <p className="text-center text-xs font-bold text-foreground/70 sm:text-left">
-              显示 {rangeStart}–{rangeEnd} / 共 {filteredDomains.length} 条 · 第 {currentPage}/
-              {totalPages} 页
-            </p>
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <label className="flex items-center gap-2 text-xs font-bold text-foreground/80">
-                <span>每页</span>
-                <select
-                  value={pageSize}
-                  onChange={(event) =>
-                    resetPage(setPageSize, Number(event.target.value) as PageSize)
-                  }
-                  className="h-8 rounded-none border-2 border-border bg-secondary-background px-2 font-black shadow-shadow outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  {PAGE_SIZE_OPTIONS.map((size) => (
-                    <option key={size} value={size}>
-                      {size} 条
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={currentPage <= 1}
-                onClick={() => setPage((value) => Math.max(1, value - 1))}
-              >
-                <ChevronLeft aria-hidden="true" /> 上一页
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={currentPage >= totalPages}
-                onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
-              >
-                下一页 <ChevronRight aria-hidden="true" />
-              </Button>
-            </div>
-          </nav>
+          <DomainListPagination
+            rangeStart={rangeStart}
+            rangeEnd={rangeEnd}
+            total={filteredDomains.length}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            onPageSizeChange={(value) =>
+              setParams({
+                pageSize: value === "20" ? null : value,
+                page: null,
+              })
+            }
+            onPrev={() =>
+              setParams(
+                {
+                  page: currentPage - 1 <= 1 ? null : String(currentPage - 1),
+                },
+                { resetPage: false },
+              )
+            }
+            onNext={() =>
+              setParams(
+                { page: String(currentPage + 1) },
+                { resetPage: false },
+              )
+            }
+          />
         </section>
       </div>
     </AppShell>

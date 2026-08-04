@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { KeyRound, RefreshCw, Wallet } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/sonner";
 import { useSettingsStore } from "@/features/settings/settings-store";
+import { formatSyncedAt } from "@/lib/format-relative";
 
 export function SettingsConsole() {
   const {
@@ -24,6 +25,7 @@ export function SettingsConsole() {
     loading,
     error,
     initialized,
+    lastSyncedAt,
     refreshSettings,
     createApiKey,
     regenerateApiKey,
@@ -33,6 +35,12 @@ export function SettingsConsole() {
   const [busyKeyId, setBusyKeyId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -101,7 +109,7 @@ export function SettingsConsole() {
         <PageHeader
           eyebrow="设置"
           title="DNSHE 工具台"
-          description="API 密钥与配额管理 · 经服务端 API 转发"
+          description={`API 密钥与配额管理 · ${formatSyncedAt(lastSyncedAt, now)}`}
           actions={
             <Button
               type="button"
