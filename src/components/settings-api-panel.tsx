@@ -1,6 +1,6 @@
 "use client";
 
-import type { FormEvent } from "react";
+import { useMemo, type FormEvent } from "react";
 
 import { SensitiveValue } from "@/components/sensitive-value";
 import { Button } from "@/components/ui/button";
@@ -65,6 +65,16 @@ export function SettingsApiPanel({
   onRegenerate,
   onDelete,
 }: SettingsApiPanelProps) {
+  const sortedKeys = useMemo(
+    () =>
+      [...keys].sort(
+        (left, right) =>
+          right.request_count - left.request_count ||
+          left.key_name.localeCompare(right.key_name),
+      ),
+    [keys],
+  );
+
   return (
     <div className="space-y-3">
       <section className="border-2 border-border bg-secondary-background p-3.5 shadow-shadow">
@@ -148,7 +158,14 @@ export function SettingsApiPanel({
       </section>
 
       <section className="border-2 border-border bg-secondary-background p-3.5 shadow-shadow">
-        <h2 className="text-lg font-black">密钥列表</h2>
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-black">密钥列表</h2>
+            <p className="mt-0.5 text-xs font-bold text-foreground/70">
+              按请求数从高到低排序
+            </p>
+          </div>
+        </div>
         <div className="mt-3 overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-foreground text-background">
@@ -161,7 +178,7 @@ export function SettingsApiPanel({
               </tr>
             </thead>
             <tbody>
-              {keys.map((item) => (
+              {sortedKeys.map((item) => (
                 <tr key={item.id} className="border-t-2 border-border">
                   <td className="px-2.5 py-2 font-black">{item.key_name}</td>
                   <td className="px-2.5 py-2">

@@ -1,10 +1,14 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
-import { Plus, Search } from "lucide-react";
+import { Download, Plus, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
+import {
+  dnsRecordsToCsv,
+  downloadTextFile,
+} from "@/features/domains/dns-export";
 import { normalizeDnsRecordName } from "@/features/domains/dns-record-name";
 import {
   applyDnsTemplate,
@@ -150,6 +154,19 @@ export function DnsRecords({
     }
   }
 
+  function handleExport() {
+    const source = query.trim() ? visibleRecords : records;
+    if (source.length === 0) {
+      toast.error("没有可导出的记录");
+      return;
+    }
+    downloadTextFile(
+      `dns-${zoneDomain}-${new Date().toISOString().slice(0, 10)}.csv`,
+      dnsRecordsToCsv(source),
+    );
+    toast.success(`已导出 ${source.length} 条 DNS 记录`);
+  }
+
   return (
     <section
       aria-labelledby="dns-records-title"
@@ -165,14 +182,25 @@ export function DnsRecords({
             {query.trim() ? ` · 筛选 ${visibleRecords.length}` : ""}
           </p>
         </div>
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => openCreate()}
-          disabled={!canWrite}
-        >
-          <Plus aria-hidden="true" /> 添加记录
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            disabled={records.length === 0}
+          >
+            <Download aria-hidden="true" /> 导出
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => openCreate()}
+            disabled={!canWrite}
+          >
+            <Plus aria-hidden="true" /> 添加记录
+          </Button>
+        </div>
       </div>
       {!canWrite ? (
         <div className="border-b-2 border-border bg-[#fff7d6] px-3 py-2 text-xs font-bold text-foreground/80">

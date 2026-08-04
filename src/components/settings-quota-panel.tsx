@@ -42,6 +42,18 @@ function MetricCard({
   );
 }
 
+function usagePercent(quota: SettingsQuota): number {
+  if (quota.total <= 0) return 0;
+  return Math.min(100, Math.round((quota.used / quota.total) * 100));
+}
+
+function progressTone(available: number, total: number): string {
+  if (total <= 0) return "bg-foreground/30";
+  if (available <= 0) return "bg-[#ff5c7a]";
+  if (available <= 3) return "bg-[#ffd84d]";
+  return "bg-[#66e58a]";
+}
+
 export interface SettingsQuotaPanelProps {
   quota: SettingsQuota | null;
   error: string | null;
@@ -53,6 +65,11 @@ export function SettingsQuotaPanel({
   error,
   initialized,
 }: SettingsQuotaPanelProps) {
+  const percent = quota ? usagePercent(quota) : 0;
+  const tone = quota
+    ? progressTone(quota.available, quota.total)
+    : "bg-foreground/20";
+
   return (
     <div className="space-y-3">
       <section className="grid gap-3 sm:grid-cols-3">
@@ -77,6 +94,41 @@ export function SettingsQuotaPanel({
           hint={!initialized ? "加载中…" : "基础 + 邀请奖励"}
           tone="blue"
         />
+      </section>
+
+      <section className="border-2 border-border bg-secondary-background p-3.5 shadow-shadow">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-black">使用进度</h2>
+            <p className="mt-0.5 text-xs font-bold text-foreground/70">
+              {quota
+                ? `已用 ${quota.used} / ${quota.total}（${percent}%）`
+                : !initialized
+                  ? "加载中…"
+                  : "暂不可用"}
+            </p>
+          </div>
+          {quota ? (
+            <span className="border-2 border-border bg-main/10 px-2 py-1 text-[11px] font-black">
+              剩余 {quota.available}
+            </span>
+          ) : null}
+        </div>
+        <div
+          className="mt-3 h-4 border-2 border-border bg-main/5"
+          role="progressbar"
+          aria-valuenow={percent}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="配额使用进度"
+        >
+          <div className={`h-full ${tone}`} style={{ width: `${percent}%` }} />
+        </div>
+        {quota && quota.available <= 3 ? (
+          <p className="mt-2 text-xs font-bold text-foreground/80">
+            可用配额偏低，注册新域名前请确认余额。
+          </p>
+        ) : null}
       </section>
 
       <section className="border-2 border-border bg-secondary-background p-3.5 shadow-shadow">

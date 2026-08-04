@@ -146,6 +146,21 @@ export function domainsToCsv(domains: readonly Subdomain[]): string {
   return [header.join(","), ...rows].join("\n");
 }
 
+export function downloadDomainsCsv(domains: readonly Subdomain[]): number {
+  if (domains.length === 0) return 0;
+  const csv = domainsToCsv(domains);
+  const blob = new Blob([`\uFEFF${csv}`], {
+    type: "text/csv;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `domains-${new Date().toISOString().slice(0, 10)}.csv`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+  return domains.length;
+}
+
 export function formatDomainDate(value: string): string {
   const timestamp = toTimestamp(value);
   if (timestamp === null) return value || "—";

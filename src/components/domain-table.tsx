@@ -19,6 +19,9 @@ import {
 
 export interface DomainTableProps {
   domains: Subdomain[];
+  selectedIds?: ReadonlySet<number>;
+  onToggleSelect?: (id: number) => void;
+  onToggleSelectAll?: () => void;
 }
 
 const statusStyles = {
@@ -36,12 +39,41 @@ const expiryStyles = {
   blue: "bg-blue-100 text-blue-800",
 } as const;
 
-export function DomainTable({ domains }: DomainTableProps) {
+export function DomainTable({
+  domains,
+  selectedIds,
+  onToggleSelect,
+  onToggleSelectAll,
+}: DomainTableProps) {
+  const selectable = Boolean(onToggleSelect && onToggleSelectAll && selectedIds);
+  const allSelected =
+    selectable &&
+    domains.length > 0 &&
+    domains.every((domain) => selectedIds!.has(domain.id));
+  const someSelected =
+    selectable &&
+    !allSelected &&
+    domains.some((domain) => selectedIds!.has(domain.id));
+
   return (
     <div className="hidden lg:block">
       <Table className="min-w-[880px]">
         <TableHeader className="bg-[#1261ff] text-white [&_tr]:border-slate-950">
           <TableRow className="border-slate-950 hover:bg-[#1261ff]">
+            {selectable ? (
+              <TableHead className="w-10 text-white">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = someSelected;
+                  }}
+                  onChange={onToggleSelectAll}
+                  aria-label="全选当前页"
+                  className="size-4 accent-white"
+                />
+              </TableHead>
+            ) : null}
             <TableHead className="text-white">域名</TableHead>
             <TableHead className="text-white">状态</TableHead>
             <TableHead className="text-white">Provider</TableHead>
@@ -53,11 +85,23 @@ export function DomainTable({ domains }: DomainTableProps) {
         <TableBody>
           {domains.map((domain) => {
             const expiry = formatExpiry(domain);
+            const checked = selectedIds?.has(domain.id) ?? false;
             return (
               <TableRow
                 key={domain.id}
                 className="border-slate-950 bg-white hover:bg-blue-50"
               >
+                {selectable ? (
+                  <TableCell>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => onToggleSelect?.(domain.id)}
+                      aria-label={`选择 ${domain.full_domain}`}
+                      className="size-4 accent-[#1261ff]"
+                    />
+                  </TableCell>
+                ) : null}
                 <TableCell>
                   <Link
                     href={`/domains/${domain.id}`}

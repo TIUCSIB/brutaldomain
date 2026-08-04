@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Download, RefreshCw, SearchX } from "lucide-react";
+import { Copy, Download, RefreshCw } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { ConfigErrorBanner } from "@/components/config-error-banner";
 import { DomainFilters } from "@/components/domain-filters";
 import { DomainFormDialog } from "@/components/domain-form-dialog";
+import { DomainListEmpty } from "@/components/domain-list-empty";
 import { DomainListPagination } from "@/components/domain-list-pagination";
 import { DomainMobileList } from "@/components/domain-mobile-list";
 import { DomainTable } from "@/components/domain-table";
@@ -19,8 +20,9 @@ import {
   readDomainListParams,
 } from "@/features/domains/domain-list-params";
 import { useDomainStore } from "@/features/domains/domain-store";
+import { useDomainSelection } from "@/features/domains/use-domain-selection";
 import {
-  domainsToCsv,
+  downloadDomainsCsv,
   formatProviderLabel,
   getErrorMessage,
   matchesExpiryRisk,
@@ -98,6 +100,13 @@ export function DomainsContent() {
     sort !== "expiry-asc" ||
     Boolean(search.trim());
 
+  const {
+    selectedIds,
+    toggleSelect,
+    toggleSelectAllVisible,
+    copySelectedNames,
+  } = useDomainSelection(filteredDomains, visibleDomains);
+
   useEffect(() => {
     if (page !== currentPage) {
       setParams({ page: currentPage === 1 ? null : String(currentPage) }, {
@@ -123,21 +132,23 @@ export function DomainsContent() {
   }
 
   function handleExport() {
-    if (filteredDomains.length === 0) {
+    const count = downloadDomainsCsv(filteredDomains);
+    if (count === 0) {
       toast.error("没有可导出的域名");
       return;
     }
-    const csv = domainsToCsv(filteredDomains);
-    const blob = new Blob([`\uFEFF${csv}`], {
-      type: "text/csv;charset=utf-8",
-    });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `domains-${new Date().toISOString().slice(0, 10)}.csv`;
-    anchor.click();
-    URL.revokeObjectURL(url);
-    toast.success(`已导出 ${filteredDomains.length} 条`);
+    toast.success(`已导出 ${count} 条`);
+  }
+
+  async function handleCopySelected() {
+    const result = await copySelectedNames();
+    if (result.ok) {
+      toast.success(`已复制 ${result.count} 个域名`);
+      return;
+    }
+    toast.error(
+      result.reason === "empty" ? "请先勾选要复制的域名" : "复制失败",
+    );
   }
 
   return (
@@ -149,6 +160,16 @@ export function DomainsContent() {
           description="筛选并管理全部 DNSHE 域名，进入详情可编辑解析记录。"
           actions={
             <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void handleCopySelected()}
+                disabled={selectedIds.size === 0}
+              >
+                <Copy />
+                复制{selectedIds.size > 0 ? ` ${selectedIds.size}` : ""}
+              </Button>
               <Button
                 type="button"
                 variant="outline"
@@ -219,41 +240,25 @@ export function DomainsContent() {
 
           {visibleDomains.length > 0 ? (
             <>
-              <DomainTable domains={visibleDomains} />
-              <DomainMobileList domains={visibleDomains} />
+              <DomainTable
+                domains={visibleDomains}
+                selectedIds={selectedIds}
+                onToggleSelect={toggleSelect}
+                onToggleSelectAll={toggleSelectAllVisible}
+              />
+              <DomainMobileList
+                domains={visibleDomains}
+                selectedIds={selectedIds}
+                onToggleSelect={toggleSelect}
+              />
             </>
           ) : (
-            <div className="grid min-h-48 place-items-center border-2 border-dashed border-border bg-secondary-background p-6 text-center shadow-shadow">
-              <div>
-                <span className="mx-auto grid size-12 place-items-center border-2 border-border bg-main/10 shadow-shadow">
-                  <SearchX aria-hidden="true" className="size-6 text-main" strokeWidth={2.5} />
-                </span>
-                <h3 className="mt-3 text-base font-black">
-                  {error ? "无法加载域名" : "没有匹配的域名"}
-                </h3>
-                <p className="mx-auto mt-1 max-w-md text-xs font-bold text-foreground/70">
-                  {error
-                    ? "请先解决上方的 DNSHE 配置或请求错误。"
-                    : "请调整搜索词或筛选条件。"}
-                </p>
-                {!error && filtersActive ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={resetFilters}
-                    className="mt-3"
-                  >
-                    清除全部
-                  </Button>
-                ) : null}
-                {!error && !filtersActive && features.domainCreate ? (
-                  <div className="mt-3">
-                    <DomainFormDialog />
-                  </div>
-                ) : null}
-              </div>
-            </div>
+            <DomainListEmpty
+              error={error}
+              filtersActive={filtersActive}
+              canCreate={features.domainCreate}
+              onReset={resetFilters}
+            />
           )}
 
           <DomainListPagination

@@ -24,6 +24,12 @@ export const DNS_TEMPLATES: DnsTemplate[] = [
     form: { type: "A", name: "@", content: "", ttl: "3600", proxied: false },
   },
   {
+    id: "apex-aaaa",
+    label: "根域 AAAA",
+    description: "@ → IPv6",
+    form: { type: "AAAA", name: "@", content: "", ttl: "3600", proxied: false },
+  },
+  {
     id: "www-cname",
     label: "www CNAME",
     description: "www → 根域",
@@ -48,6 +54,18 @@ export const DNS_TEMPLATES: DnsTemplate[] = [
     },
   },
   {
+    id: "dmarc",
+    label: "DMARC",
+    description: "邮件策略 _dmarc",
+    form: {
+      type: "TXT",
+      name: "_dmarc",
+      content: "v=DMARC1; p=none; rua=mailto:dmarc@example.com",
+      ttl: "3600",
+      proxied: false,
+    },
+  },
+  {
     id: "mx-google",
     label: "Google MX",
     description: "邮件交换",
@@ -56,6 +74,18 @@ export const DNS_TEMPLATES: DnsTemplate[] = [
       name: "@",
       content: "aspmx.l.google.com",
       priority: "1",
+      ttl: "3600",
+      proxied: false,
+    },
+  },
+  {
+    id: "caa-letsencrypt",
+    label: "CAA LE",
+    description: "仅允许 Let's Encrypt",
+    form: {
+      type: "CAA",
+      name: "@",
+      content: '0 issue "letsencrypt.org"',
       ttl: "3600",
       proxied: false,
     },
@@ -79,6 +109,10 @@ export function applyDnsTemplate(
 
   if (template.id === "www-cname" && !next.content) {
     next.content = zoneDomain;
+  }
+
+  if (template.id === "dmarc" && next.content.includes("dmarc@example.com")) {
+    next.content = `v=DMARC1; p=none; rua=mailto:dmarc@${zoneDomain}`;
   }
 
   return next;

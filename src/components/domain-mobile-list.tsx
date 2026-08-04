@@ -12,6 +12,8 @@ import {
 
 export interface DomainMobileListProps {
   domains: Subdomain[];
+  selectedIds?: ReadonlySet<number>;
+  onToggleSelect?: (id: number) => void;
 }
 
 const statusStyles = {
@@ -29,27 +31,43 @@ const expiryStyles = {
   blue: "border-blue-700 bg-blue-100 text-blue-900",
 } as const;
 
-export function DomainMobileList({ domains }: DomainMobileListProps) {
+export function DomainMobileList({
+  domains,
+  selectedIds,
+  onToggleSelect,
+}: DomainMobileListProps) {
   return (
     <ul className="grid gap-2.5 lg:hidden" aria-label="域名列表">
       {domains.map((domain) => {
         const expiry = formatExpiry(domain);
+        const checked = selectedIds?.has(domain.id) ?? false;
         return (
           <li
             key={domain.id}
             className="border-2 border-border bg-secondary-background p-3 shadow-shadow"
           >
             <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <Link
-                  href={`/domains/${domain.id}`}
-                  className="break-all text-base font-black text-main underline decoration-2 underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  {domain.full_domain}
-                </Link>
-                <p className="mt-0.5 text-[11px] font-bold text-foreground/55">
-                  ID {domain.id}
-                </p>
+              <div className="flex min-w-0 items-start gap-2">
+                {onToggleSelect ? (
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => onToggleSelect(domain.id)}
+                    aria-label={`选择 ${domain.full_domain}`}
+                    className="mt-1 size-4 shrink-0 accent-main"
+                  />
+                ) : null}
+                <div className="min-w-0">
+                  <Link
+                    href={`/domains/${domain.id}`}
+                    className="break-all text-base font-black text-main underline decoration-2 underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    {domain.full_domain}
+                  </Link>
+                  <p className="mt-0.5 text-[11px] font-bold text-foreground/55">
+                    ID {domain.id}
+                  </p>
+                </div>
               </div>
               <DomainActions domain={domain} />
             </div>
