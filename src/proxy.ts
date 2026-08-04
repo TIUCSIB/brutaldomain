@@ -32,6 +32,7 @@ export async function proxy(request: NextRequest) {
 
   const loginUrl = request.nextUrl.clone()
   loginUrl.pathname = '/'
+  loginUrl.searchParams.set('error', 'session_expired')
   loginUrl.searchParams.set('next', pathname)
   return NextResponse.redirect(loginUrl)
 }

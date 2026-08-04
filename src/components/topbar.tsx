@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { ChevronDown, Code2, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Settings, UserRound } from 'lucide-react'
 
-import { ExpiryNotifications } from '@/components/expiry-notifications'
+import { NotificationCenter } from '@/components/notification-center'
 import { Sidebar } from '@/components/sidebar'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -108,7 +108,7 @@ export function Topbar({ sidebarCollapsed, onSidebarCollapsedChange }: TopbarPro
       <div className="min-w-0 flex-1" aria-hidden="true" />
 
       <div className="ml-auto flex shrink-0 items-center gap-2">
-        <ExpiryNotifications />
+        <NotificationCenter />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

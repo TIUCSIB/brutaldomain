@@ -1,5 +1,6 @@
 export const AUTH_COOKIE_NAME = "brutaldomain_session";
 export const AUTH_STATE_COOKIE_NAME = "brutaldomain_oauth_state";
+export const AUTH_NEXT_COOKIE_NAME = "brutaldomain_oauth_next";
 export const AUTH_SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 export const AUTH_STATE_TTL_SECONDS = 60 * 10;
 

@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/sonner";
 import { useSettingsStore } from "@/features/settings/settings-store";
+import { redirectIfUnauthorized } from "@/lib/api/request-error";
 import { formatSyncedAt } from "@/lib/format-relative";
 
 export function SettingsConsole() {
@@ -48,6 +49,7 @@ export function SettingsConsole() {
       await refreshSettings({ force: true });
       toast.success("设置数据已同步");
     } catch (caught) {
+      if (redirectIfUnauthorized(caught)) return;
       toast.error("同步失败", {
         description: caught instanceof Error ? caught.message : "未知错误",
       });
@@ -67,6 +69,7 @@ export function SettingsConsole() {
       setKeyForm(emptyKeyForm);
       toast.success("API Key 已创建");
     } catch (caught) {
+      if (redirectIfUnauthorized(caught)) return;
       toast.error("创建密钥失败", {
         description: caught instanceof Error ? caught.message : "未知错误",
       });
@@ -81,6 +84,7 @@ export function SettingsConsole() {
       await deleteApiKey(keyId);
       toast.success("API Key 已删除");
     } catch (caught) {
+      if (redirectIfUnauthorized(caught)) return;
       toast.error("删除密钥失败", {
         description: caught instanceof Error ? caught.message : "未知错误",
       });
@@ -95,6 +99,7 @@ export function SettingsConsole() {
       await regenerateApiKey(keyId);
       toast.success("Secret 已重置");
     } catch (caught) {
+      if (redirectIfUnauthorized(caught)) return;
       toast.error("重置密钥失败", {
         description: caught instanceof Error ? caught.message : "未知错误",
       });

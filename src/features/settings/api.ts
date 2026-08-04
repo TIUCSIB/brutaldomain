@@ -1,3 +1,5 @@
+import { throwApiError } from "@/lib/api/request-error";
+
 import type {
   SettingsKeySecretResponse,
   SettingsKeysResponse,
@@ -17,18 +19,21 @@ async function requestJson<T>(input: string, init?: RequestInit): Promise<T> {
 
   const payload = (await response.json().catch(() => null)) as
     | T
-    | { message?: string }
+    | { message?: string; error?: string }
     | null;
 
   if (!response.ok) {
-    throw new Error(
-      (payload && typeof payload === "object" && "message" in payload
-        ? payload.message
-        : undefined) || "Request failed",
+    throwApiError(
+      response,
+      payload && typeof payload === "object"
+        ? (payload as { message?: string; error?: string })
+        : null,
     );
   }
 
-  if (payload === null) throw new Error("Empty response");
+  if (payload === null) {
+    throwApiError(response, { message: "Empty response" });
+  }
   return payload as T;
 }
 

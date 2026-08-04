@@ -13,6 +13,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   missing_code: "GitHub 未返回授权结果，请重试。",
   forbidden_user: "当前 GitHub 账号无权访问后台。",
   oauth_failed: "GitHub 登录失败，请稍后重试。",
+  session_expired: "登录已过期，请重新使用 GitHub 登录。",
 };
 
 function GitHubMark({ className = "size-5" }: { className?: string }) {
@@ -30,10 +31,15 @@ function GitHubMark({ className = "size-5" }: { className?: string }) {
 
 interface LoginPageProps {
   error?: string | null;
+  nextPath?: string | null;
 }
 
-export function LoginPage({ error }: LoginPageProps) {
+export function LoginPage({ error, nextPath }: LoginPageProps) {
   const errorMessage = error ? ERROR_MESSAGES[error] || error : null;
+  const githubHref =
+    nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//")
+      ? `/api/auth/github?next=${encodeURIComponent(nextPath)}`
+      : "/api/auth/github";
 
   return (
     <div className="relative min-h-svh overflow-hidden bg-[#edf4ff] text-slate-950">
@@ -119,7 +125,7 @@ export function LoginPage({ error }: LoginPageProps) {
               asChild
               className={`h-12 w-full bg-slate-950 text-base text-white hover:bg-slate-800 ${hardButton}`}
             >
-              <Link href="/api/auth/github">
+              <Link href={githubHref}>
                 <GitHubMark />
                 使用 GitHub 登录
               </Link>

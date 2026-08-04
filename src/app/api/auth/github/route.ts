@@ -8,13 +8,16 @@ import { createOAuthState } from "@/lib/auth/session";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
+  const requestUrl = new URL(request.url);
+  const nextPath = requestUrl.searchParams.get("next");
+
   if (!isAuthConfigured()) {
     const url = new URL("/", request.url);
     url.searchParams.set("error", "oauth_not_configured");
     return NextResponse.redirect(url);
   }
 
-  const state = await createOAuthState();
+  const state = await createOAuthState(nextPath);
   return NextResponse.redirect(buildGitHubAuthorizeUrl(request, state));
 }
 

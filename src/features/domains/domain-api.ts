@@ -1,3 +1,5 @@
+import { throwApiError } from "@/lib/api/request-error";
+
 import type {
   AddDomainInput,
   CreateDnsRecordInput,
@@ -23,19 +25,17 @@ async function requestJson<T>(input: string, init?: RequestInit): Promise<T> {
     | null;
 
   if (!response.ok) {
-    const errorMessage =
-      (payload && typeof payload === "object" && "message" in payload
-        ? payload.message
-        : undefined) ||
-      (payload && typeof payload === "object" && "error" in payload
-        ? payload.error
-        : undefined) ||
-      "Request failed";
-
-    throw new Error(errorMessage);
+    throwApiError(
+      response,
+      payload && typeof payload === "object"
+        ? (payload as { message?: string; error?: string })
+        : null,
+    );
   }
 
-  if (payload === null) throw new Error("Empty response");
+  if (payload === null) {
+    throwApiError(response, { message: "Empty response" });
+  }
   return payload as T;
 }
 
@@ -102,3 +102,4 @@ export function deleteDnsRecordRequest(
     method: "DELETE",
   });
 }
+

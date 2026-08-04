@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth/session";
 interface HomePageProps {
   searchParams: Promise<{
     error?: string;
+    next?: string;
   }>;
 }
 
@@ -16,5 +17,5 @@ export default async function Home({ searchParams }: HomePageProps) {
   }
 
   const params = await searchParams;
-  return <LoginPage error={params.error} />;
+  return <LoginPage error={params.error} nextPath={params.next} />;
 }

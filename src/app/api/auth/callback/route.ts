@@ -16,13 +16,9 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function redirectHome(request: Request, error?: string, nextPath = "/dashboard") {
+function redirectHome(request: Request, error?: string) {
   const url = new URL("/", request.url);
-  if (error) {
-    url.searchParams.set("error", error);
-  } else {
-    return NextResponse.redirect(new URL(nextPath, request.url));
-  }
+  if (error) url.searchParams.set("error", error);
   return NextResponse.redirect(url);
 }
 
@@ -35,13 +31,13 @@ export async function GET(request: Request) {
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const oauthError = url.searchParams.get("error");
-  const nextPath = url.searchParams.get("next") || "/dashboard";
 
   if (oauthError) {
     return redirectHome(request, oauthError);
   }
 
-  if (!(await consumeOAuthState(state))) {
+  const oauthState = await consumeOAuthState(state);
+  if (!oauthState.ok) {
     return redirectHome(request, "invalid_state");
   }
 
@@ -64,11 +60,7 @@ export async function GET(request: Request) {
       avatarUrl: user.avatar_url,
     });
 
-    const safeNext =
-      nextPath.startsWith("/") && !nextPath.startsWith("//")
-        ? nextPath
-        : "/dashboard";
-    return NextResponse.redirect(new URL(safeNext, request.url));
+    return NextResponse.redirect(new URL(oauthState.nextPath, request.url));
   } catch {
     return redirectHome(request, "oauth_failed");
   }

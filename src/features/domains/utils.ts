@@ -1,3 +1,5 @@
+import { redirectIfUnauthorized } from "@/lib/api/request-error";
+
 import type { DomainStatus, Subdomain } from "./types";
 
 export const EXPIRY_WINDOW_DAYS = 90;
@@ -239,7 +241,6 @@ export function sortDomains(
 }
 
 export function getErrorMessage(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : "未知错误，请重试";
+  redirectIfUnauthorized(error);
+  return error instanceof Error ? error.message : "未知错误，请重试";
 }

@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 
 import {
   AUTH_COOKIE_NAME,
+  AUTH_NEXT_COOKIE_NAME,
   AUTH_SESSION_TTL_SECONDS,
   AUTH_STATE_COOKIE_NAME,
   AUTH_STATE_TTL_SECONDS,
@@ -116,7 +117,11 @@ export async function clearSessionCookie(): Promise<void> {
   });
 }
 
-export async function createOAuthState(): Promise<string> {
+function isSafeNextPath(value: string | null | undefined): value is string {
+  return Boolean(value && value.startsWith("/") && !value.startsWith("//"));
+}
+
+export async function createOAuthState(nextPath?: string | null): Promise<string> {
   const state = randomBytes(24).toString("base64url");
   const cookieStore = await cookies();
   cookieStore.set(AUTH_STATE_COOKIE_NAME, state, {
@@ -126,16 +131,38 @@ export async function createOAuthState(): Promise<string> {
     path: "/",
     maxAge: AUTH_STATE_TTL_SECONDS,
   });
+
+  if (isSafeNextPath(nextPath)) {
+    cookieStore.set(AUTH_NEXT_COOKIE_NAME, nextPath, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: AUTH_STATE_TTL_SECONDS,
+    });
+  } else {
+    cookieStore.set(AUTH_NEXT_COOKIE_NAME, "", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 0,
+    });
+  }
+
   return state;
 }
 
 export async function consumeOAuthState(
   incomingState: string | null,
-): Promise<boolean> {
-  if (!incomingState) return false;
+): Promise<{ ok: boolean; nextPath: string }> {
+  const fallback = { ok: false, nextPath: "/dashboard" };
+  if (!incomingState) return fallback;
 
   const cookieStore = await cookies();
   const stored = cookieStore.get(AUTH_STATE_COOKIE_NAME)?.value;
+  const nextRaw = cookieStore.get(AUTH_NEXT_COOKIE_NAME)?.value ?? null;
+
   cookieStore.set(AUTH_STATE_COOKIE_NAME, "", {
     httpOnly: true,
     sameSite: "lax",
@@ -143,7 +170,19 @@ export async function consumeOAuthState(
     path: "/",
     maxAge: 0,
   });
+  cookieStore.set(AUTH_NEXT_COOKIE_NAME, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 0,
+  });
 
-  if (!stored) return false;
-  return safeEqual(stored, incomingState);
+  if (!stored) return fallback;
+  if (!safeEqual(stored, incomingState)) return fallback;
+
+  return {
+    ok: true,
+    nextPath: isSafeNextPath(nextRaw) ? nextRaw : "/dashboard",
+  };
 }

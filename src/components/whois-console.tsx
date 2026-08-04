@@ -1,74 +1,121 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import {
-  CalendarDays,
-  Globe2,
-  Mail,
-  Radar,
-  Server,
-  ShieldCheck,
-} from "lucide-react";
+import { useMemo, useState, useSyncExternalStore, type FormEvent } from "react";
+import { History, Radar, Trash2 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { PageHeader } from "@/components/page-header";
+import { WhoisResultPanel } from "@/components/whois-result-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/sonner";
+import { useDomainStore } from "@/features/domains/domain-store";
 import { lookupWhois } from "@/features/settings/api";
 import type { WhoisLookupResult } from "@/features/settings/types";
+import {
+  clearWhoisHistory,
+  pushWhoisHistory,
+  readWhoisHistory,
+  type WhoisHistoryEntry,
+} from "@/features/settings/whois-history";
+import {
+  classifyError,
+  errorHint,
+  errorTitle,
+  redirectIfUnauthorized,
+} from "@/lib/api/request-error";
 
-function ResultRow({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: typeof Globe2;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="flex min-w-0 gap-2.5 border-b border-border/60 py-2.5 last:border-b-0">
-      <span className="grid size-8 shrink-0 place-items-center border-2 border-border bg-main/15">
-        <Icon aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
-      </span>
-      <div className="min-w-0">
-        <dt className="text-[11px] font-black uppercase tracking-[0.08em] text-foreground/55">
-          {label}
-        </dt>
-        <dd className="mt-0.5 break-all text-sm font-black">{value}</dd>
-      </div>
-    </div>
-  );
+const HISTORY_EVENT = "brutaldomain-whois-history";
+
+function subscribeHistory(onStoreChange: () => void) {
+  if (typeof window === "undefined") return () => {};
+  const handler = () => onStoreChange();
+  window.addEventListener("storage", handler);
+  window.addEventListener(HISTORY_EVENT, handler);
+  return () => {
+    window.removeEventListener("storage", handler);
+    window.removeEventListener(HISTORY_EVENT, handler);
+  };
+}
+
+function getHistorySnapshot() {
+  return JSON.stringify(readWhoisHistory());
+}
+
+function getServerHistorySnapshot() {
+  return "[]";
+}
+
+function notifyHistory() {
+  window.dispatchEvent(new Event(HISTORY_EVENT));
 }
 
 export function WhoisConsole() {
+  const { domains } = useDomainStore();
   const [domain, setDomain] = useState("");
   const [result, setResult] = useState<WhoisLookupResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleLookup(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const query = domain.trim();
-    if (!query) return;
+  const historyJson = useSyncExternalStore(
+    subscribeHistory,
+    getHistorySnapshot,
+    getServerHistorySnapshot,
+  );
+  const history = useMemo(
+    () => JSON.parse(historyJson) as WhoisHistoryEntry[],
+    [historyJson],
+  );
 
+  const matchedDomain = useMemo(() => {
+    if (!result) return null;
+    const target = result.domain.toLowerCase();
+    return (
+      domains.find(
+        (item) =>
+          item.full_domain.toLowerCase() === target ||
+          item.rootdomain.toLowerCase() === target,
+      ) ?? null
+    );
+  }, [domains, result]);
+
+  async function runLookup(query: string) {
+    const normalized = query.trim();
+    if (!normalized) return;
+
+    setDomain(normalized);
     setSubmitting(true);
     setError(null);
     try {
-      const next = await lookupWhois(query);
+      const next = await lookupWhois(normalized);
       setResult(next);
+      pushWhoisHistory(next);
+      notifyHistory();
       toast.success("WHOIS 查询成功");
     } catch (caught) {
-      const message =
-        caught instanceof Error ? caught.message : "WHOIS 查询失败";
+      if (redirectIfUnauthorized(caught)) return;
+      const classified = classifyError(caught);
+      const message = classified.message || "WHOIS 查询失败";
       setError(message);
       setResult(null);
-      toast.error("WHOIS 查询失败", { description: message });
+      toast.error(errorTitle(classified.kind), {
+        description: errorHint(classified.kind) || message,
+      });
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function handleLookup(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await runLookup(domain);
+  }
+
+  function handleClearHistory() {
+    clearWhoisHistory();
+    notifyHistory();
+    toast.success("已清空查询历史");
   }
 
   return (
@@ -118,82 +165,49 @@ export function WhoisConsole() {
           ) : null}
         </section>
 
-        {result ? (
-          <section
-            aria-labelledby="whois-result-title"
-            className="border-2 border-border bg-secondary-background p-3.5 shadow-shadow"
-          >
-            <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b-2 border-border pb-2.5">
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-main">
-                  查询结果
-                </p>
-                <h2
-                  id="whois-result-title"
-                  className="mt-1 text-lg font-black tracking-tight"
-                >
-                  {result.domain}
-                </h2>
-              </div>
-              <span
-                className={`inline-flex items-center gap-1.5 border-2 border-border px-2 py-1 text-xs font-black shadow-shadow ${
-                  result.registered
-                    ? "bg-[#66e58a] text-foreground"
-                    : "bg-[#ffd84d] text-foreground"
-                }`}
+        {history.length > 0 ? (
+          <section className="border-2 border-border bg-secondary-background p-3.5 shadow-shadow">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h2 className="flex items-center gap-1.5 text-sm font-black">
+                <History className="size-3.5" />
+                最近查询
+              </h2>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-[11px]"
+                onClick={handleClearHistory}
               >
-                <ShieldCheck className="size-3.5" aria-hidden="true" />
-                {result.registered ? "已注册" : "未注册"}
-              </span>
+                <Trash2 className="size-3.5" />
+                清空
+              </Button>
             </div>
-
-            <dl>
-              <ResultRow icon={Globe2} label="状态" value={result.status} />
-              <ResultRow
-                icon={ShieldCheck}
-                label="是否注册"
-                value={result.registered ? "是" : "否"}
-              />
-              {result.registered_at ? (
-                <ResultRow
-                  icon={CalendarDays}
-                  label="注册时间"
-                  value={result.registered_at}
-                />
-              ) : null}
-              {result.expires_at ? (
-                <ResultRow
-                  icon={CalendarDays}
-                  label="到期时间"
-                  value={result.expires_at}
-                />
-              ) : null}
-              {result.registrant_email ? (
-                <ResultRow
-                  icon={Mail}
-                  label="注册邮箱"
-                  value={result.registrant_email}
-                />
-              ) : null}
-              {result.nameservers?.length ? (
-                <ResultRow
-                  icon={Server}
-                  label="名称服务器"
-                  value={result.nameservers.join(", ")}
-                />
-              ) : null}
-              {result.message ? (
-                <ResultRow icon={Radar} label="消息" value={result.message} />
-              ) : null}
-              {result.rate_limit ? (
-                <ResultRow
-                  icon={Radar}
-                  label="速率限制"
-                  value={`剩余 ${result.rate_limit.remaining}/${result.rate_limit.limit} · 重置 ${result.rate_limit.reset_at}`}
-                />
-              ) : null}
-            </dl>
+            <ul className="flex flex-wrap gap-1.5">
+              {history.map((item) => (
+                <li key={`${item.domain}-${item.queriedAt}`}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 rounded-none px-2 text-xs"
+                    disabled={submitting}
+                    onClick={() => void runLookup(item.domain)}
+                    title={item.status}
+                  >
+                    {item.domain}
+                    <span className="text-foreground/55">
+                      {item.registered ? "已注册" : "未注册"}
+                    </span>
+                  </Button>
+                </li>
+              ))}
+            </ul>
           </section>
+        ) : null}
+
+        {result ? (
+          <WhoisResultPanel result={result} matchedDomain={matchedDomain} />
         ) : (
           <section className="grid min-h-40 place-items-center border-2 border-dashed border-border bg-secondary-background p-6 text-center shadow-shadow">
             <div>
