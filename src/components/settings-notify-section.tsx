@@ -94,7 +94,7 @@ export function SettingsNotifySection({
           <AutomationToggleRow
             id="ch-email"
             label="Email"
-            description="配置后等待服务端发送"
+            description="Resend 服务端发送，可点下方测试"
             checked={draft.channelEmail}
             disabled={!draft.notifyEnabled}
             onChange={(channelEmail) => onPatch({ channelEmail })}
@@ -102,7 +102,7 @@ export function SettingsNotifySection({
           <AutomationToggleRow
             id="ch-tg"
             label="Telegram"
-            description="使用 Chat ID 接收"
+            description="Bot Token 在服务端，Chat ID 在此填写"
             checked={draft.channelTelegram}
             disabled={!draft.notifyEnabled}
             onChange={(channelTelegram) => onPatch({ channelTelegram })}

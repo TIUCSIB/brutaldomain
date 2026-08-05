@@ -12,6 +12,8 @@ function isProtectedPage(pathname: string): boolean {
 function isProtectedApi(pathname: string): boolean {
   if (!pathname.startsWith('/api/')) return false
   if (pathname.startsWith('/api/auth/')) return false
+  // Cron uses CRON_SECRET, not browser session cookies.
+  if (pathname.startsWith('/api/cron/')) return false
   return true
 }
 
@@ -38,5 +40,14 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/domains/:path*', '/whois/:path*', '/settings/:path*', '/api/domains/:path*', '/api/settings/:path*'],
+  matcher: [
+    '/dashboard/:path*',
+    '/domains/:path*',
+    '/whois/:path*',
+    '/settings/:path*',
+    '/dns/:path*',
+    '/api/domains/:path*',
+    '/api/settings/:path*',
+    '/api/cron/:path*',
+  ],
 }

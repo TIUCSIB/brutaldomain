@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Info, Save } from "lucide-react";
 
 import { SettingsNotifySection } from "@/components/settings-notify-section";
+import { SettingsNotifyTestPanel } from "@/components/settings-notify-test-panel";
 import { SettingsRenewSection } from "@/components/settings-renew-section";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
@@ -70,12 +71,14 @@ export function SettingsAutomationPanel() {
       <section className="border-2 border-border bg-[#fff7d6] p-3 shadow-shadow">
         <p className="flex items-start gap-2 text-xs font-bold leading-5 text-foreground/80">
           <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-          偏好保存在本机浏览器。站内通知与到期窗口会立即生效；邮件 / Telegram
-          推送与无人值守自动续费需要后续服务端任务接入后才会真正发送/执行。
+          偏好保存在本机浏览器。站内/浏览器通知立即生效。邮件与 Telegram
+          通过服务端发送（可下方测试）；定时扫描用 CRON_SECRET 调
+          /api/cron/expiry-notify。自动续费仍为策略偏好，不会自动扣费执行。
         </p>
       </section>
 
       <SettingsNotifySection draft={view} onPatch={patch} />
+      <SettingsNotifyTestPanel draft={view} />
       <SettingsRenewSection draft={view} onPatch={patch} />
 
       <div className="flex flex-wrap items-center justify-between gap-2">

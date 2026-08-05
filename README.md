@@ -221,6 +221,31 @@ http://localhost:3000
 
 > Never expose these values through `NEXT_PUBLIC_*` variables.
 
+### Expiry notify (Email / Telegram)
+
+Optional server-side delivery. Secrets stay on the server only.
+
+| Variable | Purpose |
+| --- | --- |
+| `RESEND_API_KEY` | Send email via [Resend](https://resend.com) |
+| `NOTIFY_FROM_EMAIL` | From header (default Resend onboarding sender) |
+| `NOTIFY_EMAIL` | Default cron email target |
+| `TELEGRAM_BOT_TOKEN` | Bot token from `@BotFather` |
+| `TELEGRAM_CHAT_ID` | Default cron Telegram chat id |
+| `CRON_SECRET` | Protects `/api/cron/expiry-notify` |
+| `NOTIFY_WINDOW_DAYS` | Optional cron window (default 30) |
+
+Manual test from **设置 → 通知与续费 → 渠道测试** (uses form email/chat id).
+
+Cron example:
+
+```bash
+curl -H "x-cron-secret: $CRON_SECRET" \
+  "https://your-app.vercel.app/api/cron/expiry-notify"
+```
+
+Vercel Cron is declared in `vercel.json` (daily). Cron uses `NOTIFY_EMAIL` / `TELEGRAM_CHAT_ID`, not browser localStorage prefs.
+
 ## Available Pages
 
 | Route | Description |
@@ -230,7 +255,8 @@ http://localhost:3000
 | `/domains` | Protected domain inventory and filters |
 | `/domains/[id]` | Protected domain detail, DNS records, and activity view |
 | `/whois` | Protected WHOIS lookup console |
-| `/settings` | Protected API keys and quota console |
+| `/settings` | Protected API keys, quota, notify & renew prefs |
+| `/dns` | Protected global DNS search |
 
 ## Quality Checks
 
