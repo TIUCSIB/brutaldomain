@@ -3,6 +3,13 @@
 import { CalendarClock, RotateCw } from "lucide-react";
 
 import { AutomationToggleRow } from "@/components/settings-automation-toggles";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
   AUTO_RENEW_DAY_OPTIONS,
@@ -18,16 +25,21 @@ export function SettingsRenewSection({
   onPatch: (patch: Partial<AutomationPrefs>) => void;
 }) {
   return (
-    <section className="border-2 border-border bg-secondary-background p-3.5 shadow-shadow">
-      <header className="mb-3 flex items-center gap-2 border-b-2 border-border pb-2">
-        <RotateCw className="size-4" strokeWidth={2.5} />
-        <h2 className="text-base font-black">自动续费</h2>
-      </header>
-      <div className="space-y-3">
+    <Card className="gap-0 bg-secondary-background py-0">
+      <CardHeader className="border-b-2 border-border bg-main/10 px-4 py-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <RotateCw className="size-4" strokeWidth={2.5} />
+          自动续费
+        </CardTitle>
+        <CardDescription className="text-xs font-bold text-foreground/70">
+          独立于通知。当前为策略偏好 + 手动续费（DNSHE 单次续费，无年限）
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3 p-4">
         <AutomationToggleRow
           id="auto-renew"
           label="开启自动续费意向"
-          description={`剩余 ≤${AUTO_RENEW_MAX_DAYS} 天时才可续费；DNSHE 仅支持直接续费，无年限参数`}
+          description={`仅剩余 ≤${AUTO_RENEW_MAX_DAYS} 天可续费；定时自动执行尚未接入`}
           checked={draft.autoRenewEnabled}
           onChange={(autoRenewEnabled) => onPatch({ autoRenewEnabled })}
         />
@@ -57,14 +69,14 @@ export function SettingsRenewSection({
             </select>
             <p className="text-[11px] font-bold text-foreground/60">
               <CalendarClock className="mr-1 inline size-3.5" />
-              硬性上限 {AUTO_RENEW_MAX_DAYS} 天；接口为单次续费，不选年限
+              硬性上限 {AUTO_RENEW_MAX_DAYS} 天；接口为单次续费
             </p>
           </div>
           <div className="grid gap-2 content-start">
             <AutomationToggleRow
               id="auto-renew-confirm"
               label="续费前需要确认"
-              description="即使开启自动续费，也先提示再执行（更安全）"
+              description="更安全，避免静默扣配额"
               checked={draft.autoRenewRequireConfirm}
               disabled={!draft.autoRenewEnabled}
               onChange={(autoRenewRequireConfirm) =>
@@ -73,7 +85,7 @@ export function SettingsRenewSection({
             />
             <AutomationToggleRow
               id="auto-renew-registered"
-              label="仅 Registered 状态"
+              label="仅 Registered"
               description="跳过 Pending / Suspended / Error"
               checked={draft.autoRenewRegisteredOnly}
               disabled={!draft.autoRenewEnabled}
@@ -83,7 +95,7 @@ export function SettingsRenewSection({
             />
           </div>
         </div>
-      </div>
-    </section>
+      </CardContent>
+    </Card>
   );
 }

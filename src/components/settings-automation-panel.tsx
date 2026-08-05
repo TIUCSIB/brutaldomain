@@ -3,8 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Info, Save } from "lucide-react";
 
-import { SettingsNotifySection } from "@/components/settings-notify-section";
-import { SettingsNotifyTestPanel } from "@/components/settings-notify-test-panel";
+import { SettingsNotifyCard } from "@/components/settings-notify-card";
 import { SettingsRenewSection } from "@/components/settings-renew-section";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
@@ -21,9 +20,7 @@ import {
   enableBrowserNotify,
 } from "@/features/domains/use-browser-notify";
 
-function toLocalNotifyDays(
-  days: number,
-): AutomationPrefs["notifyDays"] {
+function toLocalNotifyDays(days: number): AutomationPrefs["notifyDays"] {
   if (days <= 1) return 1;
   if (days <= 3) return 3;
   if (days <= 7) return 7;
@@ -101,11 +98,9 @@ export function SettingsAutomationPanel() {
         disableBrowserNotify();
       }
 
-      // Align in-app window with server window
       nextLocal.notifyDays = toLocalNotifyDays(nextServer.notifyDays);
       nextLocal.notifyEnabled = true;
       nextLocal.notifyExpired = nextServer.notifyExpired;
-      // Remote targets live on server only
       nextLocal.channelEmail = false;
       nextLocal.channelTelegram = false;
       nextLocal.email = "";
@@ -118,18 +113,17 @@ export function SettingsAutomationPanel() {
       const saved = await saveServer(nextServer);
       setServerDraft({});
 
-      const where =
-        saved.persistedToBlob
-          ? "Vercel Blob"
-          : saved.persistedToDisk
-            ? "本地 .data/"
-            : saved.backend === "memory"
-              ? "仅内存"
-              : saved.backend;
+      const where = saved.persistedToBlob
+        ? "Vercel Blob"
+        : saved.persistedToDisk
+          ? "本地 .data/"
+          : saved.backend === "memory"
+            ? "仅内存"
+            : saved.backend;
       toast.success("已保存", {
         description: saved.warning
           ? saved.warning
-          : `服务端配置 → ${where}；本机渠道已更新`,
+          : `通知配置 → ${where}；本机渠道与续费偏好已更新`,
       });
     } catch (error) {
       toast.error("保存失败", {
@@ -146,12 +140,9 @@ export function SettingsAutomationPanel() {
         <p className="flex items-start gap-2 text-xs font-bold leading-5 text-foreground/80">
           <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
           <span>
-            <strong>服务端配置</strong>
-            （天数、邮箱、Chat ID、远程渠道）保存后供 cron/测试使用。
-            <strong> 密钥</strong>
-            （Resend / Bot Token / Cron）只在环境变量。
-            <strong> 本机渠道</strong>
-            与自动续费策略仅存当前浏览器。
+            <strong>通知</strong>与<strong>续费</strong>
+            分为两张卡片。通知含本机 + 远程 + 测试；密钥与 Blob
+            Token 在环境变量。
             {serverError ? (
               <>
                 <br />
@@ -169,26 +160,24 @@ export function SettingsAutomationPanel() {
         </p>
       </section>
 
-      <SettingsNotifySection
+      <SettingsNotifyCard
         serverDraft={serverView}
         onServerPatch={patchServer}
         localDraft={localView}
         onLocalPatch={patchLocal}
-        serverLoading={serverLoading && !serverLoaded}
-      />
-      <SettingsNotifyTestPanel
-        draft={serverView}
         secrets={secrets}
         storage={storage}
+        serverLoading={serverLoading && !serverLoaded}
       />
+
       <SettingsRenewSection draft={localView} onPatch={patchLocal} />
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[11px] font-bold text-foreground/60">
-          服务端通知{" "}
+          通知{" "}
           {serverView.notifyEnabled ? `${serverView.notifyDays} 天` : "关"}
           {" · "}
-          自动续费{" "}
+          续费{" "}
           {localView.autoRenewEnabled ? `${localView.autoRenewDays} 天` : "关"}
         </p>
         <Button
