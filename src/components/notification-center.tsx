@@ -6,6 +6,7 @@ import { Bell, Wallet } from "lucide-react";
 
 import { NotificationAlertList } from "@/components/notification-alert-list";
 import { NotificationHistoryPanel } from "@/components/notification-history-panel";
+import { NotificationToolbar } from "@/components/notification-toolbar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -18,7 +19,6 @@ import { toast } from "@/components/ui/sonner";
 import { useDomainStore } from "@/features/domains/domain-store";
 import {
   getExpiryAlerts,
-  NOTIFY_WINDOW_OPTIONS,
   readExpiryNotifyPrefs,
   writeExpiryNotifyPrefs,
   type ExpiryNotifyPrefs,
@@ -30,9 +30,12 @@ import {
   useBrowserNotifyEffects,
   useBrowserNotifyState,
 } from "@/features/domains/use-browser-notify";
+import { readAutomationPrefs } from "@/features/settings/automation-prefs";
+import { useAutomationPrefs } from "@/features/settings/use-automation-prefs";
 import { useSettingsStore } from "@/features/settings/settings-store";
 
 const PREFS_EVENT = "brutaldomain-expiry-prefs";
+const AUTOMATION_EVENT = "brutaldomain-automation-prefs";
 const QUOTA_WARN_THRESHOLD = 3;
 
 function subscribePrefs(onStoreChange: () => void) {
@@ -40,36 +43,55 @@ function subscribePrefs(onStoreChange: () => void) {
   const handler = () => onStoreChange();
   window.addEventListener("storage", handler);
   window.addEventListener(PREFS_EVENT, handler);
+  window.addEventListener(AUTOMATION_EVENT, handler);
   return () => {
     window.removeEventListener("storage", handler);
     window.removeEventListener(PREFS_EVENT, handler);
+    window.removeEventListener(AUTOMATION_EVENT, handler);
   };
 }
 
 function getPrefsSnapshot(): string {
-  return JSON.stringify(readExpiryNotifyPrefs());
+  const expiry = readExpiryNotifyPrefs();
+  const automation = readAutomationPrefs();
+  return JSON.stringify({
+    dismissed: expiry.dismissed,
+    notifyEnabled: automation.notifyEnabled,
+    channelInApp: automation.channelInApp,
+    notifyDays: automation.notifyDays,
+    notifyExpired: automation.notifyExpired,
+  });
 }
 
 function getServerPrefsSnapshot(): string {
   return JSON.stringify({
-    windowDays: 30,
     dismissed: {},
-  } satisfies ExpiryNotifyPrefs);
+    notifyEnabled: true,
+    channelInApp: true,
+    notifyDays: 30,
+    notifyExpired: true,
+  });
 }
 
-function setPrefs(next: ExpiryNotifyPrefs) {
-  writeExpiryNotifyPrefs(next);
+function writeDismissed(dismissed: Record<string, string>) {
+  const current = readExpiryNotifyPrefs();
+  writeExpiryNotifyPrefs({ ...current, dismissed });
   window.dispatchEvent(new Event(PREFS_EVENT));
 }
 
-function riskQueryForWindow(days: NotifyWindowDays) {
+function riskQueryForWindow(days: number) {
   if (days <= 7) return "within-7";
   if (days <= 30) return "within-30";
   return "within-90";
 }
 
-/** @deprecated use NotificationCenter */
-export const ExpiryNotifications = NotificationCenter;
+type CenterPrefs = {
+  dismissed: ExpiryNotifyPrefs["dismissed"];
+  notifyEnabled: boolean;
+  channelInApp: boolean;
+  notifyDays: number;
+  notifyExpired: boolean;
+};
 
 export function NotificationCenter() {
   const { domains, initialized, loading } = useDomainStore();
@@ -80,19 +102,27 @@ export function NotificationCenter() {
     getServerPrefsSnapshot,
   );
   const prefs = useMemo(
-    () => JSON.parse(prefsJson) as ExpiryNotifyPrefs,
+    () => JSON.parse(prefsJson) as CenterPrefs,
     [prefsJson],
   );
   const { prefs: browserPrefs, history } = useBrowserNotifyState();
+  const { prefs: automationPrefs, patchPrefs } = useAutomationPrefs();
 
-  const alerts = useMemo(
-    () =>
-      getExpiryAlerts(domains, {
-        windowDays: prefs.windowDays,
-        dismissed: prefs.dismissed,
-      }),
-    [domains, prefs.dismissed, prefs.windowDays],
-  );
+  const alerts = useMemo(() => {
+    if (!prefs.notifyEnabled || !prefs.channelInApp) return [];
+    return getExpiryAlerts(domains, {
+      windowDays: prefs.notifyDays,
+      dismissed: prefs.dismissed,
+      includeExpired: prefs.notifyExpired,
+    });
+  }, [
+    domains,
+    prefs.channelInApp,
+    prefs.dismissed,
+    prefs.notifyDays,
+    prefs.notifyEnabled,
+    prefs.notifyExpired,
+  ]);
 
   const quotaLow =
     settingsInitialized &&
@@ -103,26 +133,37 @@ export function NotificationCenter() {
     alerts,
     quotaLow: Boolean(quotaLow),
     quotaAvailable: quota?.available,
-    enabled: browserPrefs.enabled,
+    enabled:
+      browserPrefs.enabled &&
+      automationPrefs.notifyEnabled &&
+      automationPrefs.channelBrowser,
   });
 
   const count = alerts.length + (quotaLow ? 1 : 0);
-  const badgeText = count > 99 ? "99+" : String(count);
-  const listHref = `/domains?risk=${riskQueryForWindow(prefs.windowDays)}&sort=expiry-asc`;
+  const listHref = `/domains?risk=${riskQueryForWindow(prefs.notifyDays)}&sort=expiry-asc`;
 
   const setWindowDays = useCallback(
-    (windowDays: NotifyWindowDays) => setPrefs({ ...prefs, windowDays }),
-    [prefs],
+    (windowDays: NotifyWindowDays) => {
+      const current = readExpiryNotifyPrefs();
+      writeExpiryNotifyPrefs({ ...current, windowDays });
+      window.dispatchEvent(new Event(PREFS_EVENT));
+      patchPrefs({
+        notifyDays: windowDays,
+        notifyEnabled: true,
+        channelInApp: true,
+      });
+    },
+    [patchPrefs],
   );
 
   const dismissOne = useCallback(
     (domainId: number, expiresAt: string) => {
-      setPrefs({
-        ...prefs,
-        dismissed: { ...prefs.dismissed, [String(domainId)]: expiresAt },
+      writeDismissed({
+        ...prefs.dismissed,
+        [String(domainId)]: expiresAt,
       });
     },
-    [prefs],
+    [prefs.dismissed],
   );
 
   const dismissAll = useCallback(() => {
@@ -130,23 +171,32 @@ export function NotificationCenter() {
     for (const alert of alerts) {
       dismissed[String(alert.domain.id)] = alert.domain.expires_at;
     }
-    setPrefs({ ...prefs, dismissed });
-  }, [alerts, prefs]);
+    writeDismissed(dismissed);
+  }, [alerts, prefs.dismissed]);
 
   const clearDismissed = useCallback(() => {
-    setPrefs({ ...prefs, dismissed: {} });
-  }, [prefs]);
+    writeDismissed({});
+  }, []);
 
   async function toggleBrowserNotify() {
-    if (browserPrefs.enabled) {
+    if (browserPrefs.enabled && automationPrefs.channelBrowser) {
       disableBrowserNotify();
+      patchPrefs({ channelBrowser: false });
       toast.success("已关闭浏览器通知");
       return;
     }
     const result = await enableBrowserNotify();
-    if (result === "granted") toast.success("已开启浏览器通知");
-    else if (result === "unsupported") toast.error("当前浏览器不支持通知");
-    else toast.error("未获得通知权限");
+    if (result === "granted") {
+      patchPrefs({
+        channelBrowser: true,
+        notifyEnabled: true,
+      });
+      toast.success("已开启浏览器通知");
+    } else if (result === "unsupported") {
+      toast.error("当前浏览器不支持通知");
+    } else {
+      toast.error("未获得通知权限");
+    }
   }
 
   return (
@@ -162,7 +212,7 @@ export function NotificationCenter() {
           <Bell className="size-4" strokeWidth={2.5} />
           {count > 0 ? (
             <span className="absolute -top-1.5 -right-1.5 grid min-w-4 place-items-center rounded-full border border-border bg-[#ff5c7a] px-1 text-[10px] font-black leading-none text-white">
-              {badgeText}
+              {count > 99 ? "99+" : count}
             </span>
           ) : null}
         </Button>
@@ -174,44 +224,20 @@ export function NotificationCenter() {
         <DropdownMenuLabel className="flex items-center justify-between gap-2 px-3 py-2.5 font-black">
           <span>通知中心</span>
           <span className="text-[11px] font-bold text-foreground/60">
-            到期 {prefs.windowDays} 天 · 配额 ≤{QUOTA_WARN_THRESHOLD}
+            到期 {prefs.notifyDays} 天 · 配额 ≤{QUOTA_WARN_THRESHOLD}
           </span>
         </DropdownMenuLabel>
 
-        <div className="flex flex-wrap gap-1 border-y-2 border-border px-3 py-2">
-          {NOTIFY_WINDOW_OPTIONS.map((days) => (
-            <Button
-              key={days}
-              type="button"
-              size="sm"
-              variant={prefs.windowDays === days ? "default" : "outline"}
-              className="h-7 rounded-none px-2 text-[11px]"
-              onClick={() => setWindowDays(days)}
-            >
-              {days} 天
-            </Button>
-          ))}
-          <Button
-            type="button"
-            size="sm"
-            variant={browserPrefs.enabled ? "default" : "outline"}
-            className="h-7 rounded-none px-2 text-[11px]"
-            onClick={() => void toggleBrowserNotify()}
-          >
-            浏览器通知
-          </Button>
-          {Object.keys(prefs.dismissed).length > 0 ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="ml-auto h-7 rounded-none px-2 text-[11px]"
-              onClick={clearDismissed}
-            >
-              恢复已忽略
-            </Button>
-          ) : null}
-        </div>
+        <NotificationToolbar
+          notifyDays={prefs.notifyDays}
+          browserEnabled={
+            browserPrefs.enabled && automationPrefs.channelBrowser
+          }
+          hasDismissed={Object.keys(prefs.dismissed).length > 0}
+          onSetWindowDays={setWindowDays}
+          onToggleBrowser={() => void toggleBrowserNotify()}
+          onClearDismissed={clearDismissed}
+        />
 
         {quotaLow && quota ? (
           <Link
@@ -235,7 +261,7 @@ export function NotificationCenter() {
           initialized={initialized}
           loading={loading}
           quotaLow={Boolean(quotaLow)}
-          windowDays={prefs.windowDays}
+          windowDays={prefs.notifyDays}
           onDismiss={dismissOne}
         />
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { KeyRound, RefreshCw, Wallet } from "lucide-react";
+import { BellRing, KeyRound, RefreshCw, Wallet } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { ConfigErrorBanner } from "@/components/config-error-banner";
@@ -11,6 +11,7 @@ import {
   emptyKeyForm,
   SettingsApiPanel,
 } from "@/components/settings-api-panel";
+import { SettingsAutomationPanel } from "@/components/settings-automation-panel";
 import { SettingsQuotaPanel } from "@/components/settings-quota-panel";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -146,6 +147,10 @@ export function SettingsConsole() {
               <Wallet className="size-3.5" />
               配额
             </TabsTrigger>
+            <TabsTrigger value="automation">
+              <BellRing className="size-3.5" />
+              通知与续费
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="api">
@@ -184,6 +189,10 @@ export function SettingsConsole() {
               error={error}
               initialized={initialized}
             />
+          </TabsContent>
+
+          <TabsContent value="automation">
+            <SettingsAutomationPanel />
           </TabsContent>
         </Tabs>
 

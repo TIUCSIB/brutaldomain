@@ -67,17 +67,21 @@ export function getExpiryAlerts(
     now?: Date;
     windowDays?: number;
     dismissed?: Record<string, string>;
+    /** When false, skip already-expired domains. Default true. */
+    includeExpired?: boolean;
   },
 ): ExpiryAlert[] {
   const now = options?.now ?? new Date();
   const windowDays = options?.windowDays ?? 30;
   const dismissed = options?.dismissed ?? {};
+  const includeExpired = options?.includeExpired ?? true;
   const alerts: ExpiryAlert[] = [];
 
   for (const domain of domains) {
     const days = getExpiryDays(domain, now);
     if (days === null) continue;
     if (days > windowDays) continue;
+    if (!includeExpired && days < 0) continue;
 
     const key = String(domain.id);
     if (dismissed[key] && dismissed[key] === domain.expires_at) continue;
