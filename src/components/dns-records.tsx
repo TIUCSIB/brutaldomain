@@ -97,6 +97,7 @@ export function DnsRecords({
       <RecordEditorDialog
         editingRecord={ctrl.editingRecord}
         form={ctrl.form}
+        formError={ctrl.formError}
         onChange={ctrl.setForm}
         onOpenChange={ctrl.setDialogOpen}
         onSubmit={ctrl.handleSubmit}

@@ -57,6 +57,7 @@ export function useDnsRecordsController({
   const [editingRecord, setEditingRecord] = useState<DnsRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DnsRecord | null>(null);
   const [form, setForm] = useState<RecordForm>(emptyForm);
+  const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [query, setQuery] = useState("");
@@ -88,6 +89,7 @@ export function useDnsRecordsController({
 
   function openCreate(templateId?: string) {
     setEditingRecord(null);
+    setFormError(null);
     const template = DNS_TEMPLATES.find((item) => item.id === templateId);
     setForm(
       template ? applyDnsTemplate(template, zoneDomain, emptyForm) : emptyForm,
@@ -97,11 +99,17 @@ export function useDnsRecordsController({
 
   function openEdit(record: DnsRecord) {
     setEditingRecord(record);
+    setFormError(null);
     setForm({
       ...formFromRecord(record),
       name: normalizeDnsRecordName(record.name, zoneDomain),
     });
     setDialogOpen(true);
+  }
+
+  function handleDialogOpenChange(open: boolean) {
+    setDialogOpen(open);
+    if (!open) setFormError(null);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -111,6 +119,7 @@ export function useDnsRecordsController({
       form.priority.trim() === "" ? undefined : Number(form.priority);
     const name = normalizeDnsRecordName(form.name, zoneDomain);
     setSubmitting(true);
+    setFormError(null);
 
     try {
       if (editingRecord) {
@@ -146,10 +155,13 @@ export function useDnsRecordsController({
           description: `${form.type} ${name}`,
         });
       }
+      setFormError(null);
       setDialogOpen(false);
     } catch (error) {
+      const message = getErrorMessage(error);
+      setFormError(message);
       toast.error("保存失败", {
-        description: getErrorMessage(error),
+        description: `${message} · 表单内容已保留，可修改后重试`,
       });
     } finally {
       setSubmitting(false);
@@ -233,12 +245,13 @@ export function useDnsRecordsController({
     templates: DNS_TEMPLATES,
     batchTemplates: DNS_BATCH_TEMPLATES,
     dialogOpen,
-    setDialogOpen,
+    setDialogOpen: handleDialogOpenChange,
     editingRecord,
     deleteTarget,
     setDeleteTarget,
     form,
     setForm,
+    formError,
     submitting,
     deleting,
     query,

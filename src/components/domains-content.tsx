@@ -144,7 +144,19 @@ export function DomainsContent() {
       toast.error("没有可导出的域名");
       return;
     }
-    toast.success(`已导出 ${count} 条`);
+    toast.success(`已导出筛选结果 ${count} 条`);
+  }
+
+  function handleExportSelected() {
+    const selected = filteredDomains.filter((domain) =>
+      selectedIds.has(domain.id),
+    );
+    const count = downloadDomainsCsv(selected);
+    if (count === 0) {
+      toast.error("请先勾选要导出的域名");
+      return;
+    }
+    toast.success(`已导出勾选 ${count} 条`);
   }
 
   async function handleCopySelected() {
@@ -169,10 +181,12 @@ export function DomainsContent() {
             <DomainsPageActions
               selectedCount={selectedIds.size}
               canExport={filteredDomains.length > 0}
+              canExportSelected={selectedIds.size > 0}
               refreshing={refreshing}
               loading={loading}
               onCopy={() => void handleCopySelected()}
               onExport={handleExport}
+              onExportSelected={handleExportSelected}
               onRefresh={() => void handleRefresh()}
             />
           }

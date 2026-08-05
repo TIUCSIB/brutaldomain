@@ -6,18 +6,22 @@ import { Button } from "@/components/ui/button";
 export function DomainsPageActions({
   selectedCount,
   canExport,
+  canExportSelected,
   refreshing,
   loading,
   onCopy,
   onExport,
+  onExportSelected,
   onRefresh,
 }: {
   selectedCount: number;
   canExport: boolean;
+  canExportSelected: boolean;
   refreshing: boolean;
   loading: boolean;
   onCopy: () => void;
   onExport: () => void;
+  onExportSelected: () => void;
   onRefresh: () => void;
 }) {
   return (
@@ -36,11 +40,21 @@ export function DomainsPageActions({
         type="button"
         variant="outline"
         size="sm"
+        onClick={onExportSelected}
+        disabled={!canExportSelected}
+      >
+        <Download />
+        导出勾选{selectedCount > 0 ? ` ${selectedCount}` : ""}
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
         onClick={onExport}
         disabled={!canExport}
       >
         <Download />
-        导出
+        导出筛选
       </Button>
       <Button
         type="button"

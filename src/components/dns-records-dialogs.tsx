@@ -39,9 +39,17 @@ export function formFromRecord(record: DnsRecord): RecordForm {
   }
 }
 
+const TTL_PRESETS = [
+  { label: '1 分', value: '60' },
+  { label: '5 分', value: '300' },
+  { label: '1 时', value: '3600' },
+  { label: '1 天', value: '86400' },
+] as const
+
 interface RecordEditorDialogProps {
   editingRecord: DnsRecord | null
   form: RecordForm
+  formError?: string | null
   onChange: (form: RecordForm) => void
   onOpenChange: (open: boolean) => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
@@ -52,7 +60,18 @@ interface RecordEditorDialogProps {
   zoneDomain: string
 }
 
-export function RecordEditorDialog({ editingRecord, form, onChange, onOpenChange, onSubmit, open, proxyEditing, submitting, zoneDomain }: RecordEditorDialogProps) {
+export function RecordEditorDialog({
+  editingRecord,
+  form,
+  formError = null,
+  onChange,
+  onOpenChange,
+  onSubmit,
+  open,
+  proxyEditing,
+  submitting,
+  zoneDomain,
+}: RecordEditorDialogProps) {
   const fqdn = buildDnsRecordFqdn(form.name || '@', zoneDomain)
   const target = describeDnsRecordTarget(form.type, form.content)
   const proxyHint = form.proxied ? '并通过 Cloudflare 代理其流量。' : '（仅 DNS，不经 Cloudflare 代理）。'
@@ -140,6 +159,20 @@ export function RecordEditorDialog({ editingRecord, form, onChange, onOpenChange
                 onChange={(event) => onChange({ ...form, ttl: event.target.value })}
                 className="rounded-none border-slate-950 bg-white shadow-[2px_2px_0_0_#0f172a]"
               />
+              <div className="flex flex-wrap gap-1.5">
+                {TTL_PRESETS.map((preset) => (
+                  <Button
+                    key={preset.value}
+                    type="button"
+                    size="sm"
+                    variant={form.ttl === preset.value ? 'default' : 'outline'}
+                    className="h-7 rounded-none px-2 text-[11px]"
+                    onClick={() => onChange({ ...form, ttl: preset.value })}
+                  >
+                    {preset.label}
+                  </Button>
+                ))}
+              </div>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="dns-priority" className="font-black">
@@ -162,6 +195,13 @@ export function RecordEditorDialog({ editingRecord, form, onChange, onOpenChange
             <input type="checkbox" checked={form.proxied} disabled={!proxyEditing} onChange={(event) => onChange({ ...form, proxied: event.target.checked })} className="size-5 accent-[#1261ff]" />
             {proxyEditing ? '开启 Cloudflare 代理' : '代理状态当前只读'}
           </label>
+
+          {formError ? (
+            <div role="alert" className="border-2 border-slate-950 bg-[#ffecef] p-3 text-xs font-bold text-slate-950 shadow-[2px_2px_0_0_#0f172a]">
+              {formError}
+              <span className="mt-1 block text-slate-700">输入已保留，修正后可直接重试。</span>
+            </div>
+          ) : null}
         </form>
 
         <DialogFooter>
@@ -171,6 +211,10 @@ export function RecordEditorDialog({ editingRecord, form, onChange, onOpenChange
           <Button type="submit" form="dns-record-form" disabled={submitting} className="rounded-none border-slate-950 bg-[#1261ff] text-white shadow-[2px_2px_0_0_#0f172a]">
             {submitting ?
               '保存中…'
+            : formError ?
+              editingRecord ?
+                '重试保存'
+              : '重试添加'
             : editingRecord ?
               '保存更改'
             : '添加记录'}

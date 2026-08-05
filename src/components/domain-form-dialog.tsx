@@ -29,15 +29,20 @@ export function DomainFormDialog() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
-    if (!nextOpen) setForm(initialForm);
+    if (!nextOpen) {
+      setForm(initialForm);
+      setFormError(null);
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitting(true);
+    setFormError(null);
 
     try {
       const domain = await addDomain({
@@ -47,7 +52,11 @@ export function DomainFormDialog() {
       toast.success("域名已添加", { description: domain.full_domain });
       handleOpenChange(false);
     } catch (error) {
-      toast.error("添加失败", { description: getErrorMessage(error) });
+      const message = getErrorMessage(error);
+      setFormError(message);
+      toast.error("添加失败", {
+        description: `${message} · 表单内容已保留，可修改后重试`,
+      });
     } finally {
       setSubmitting(false);
     }
@@ -116,6 +125,18 @@ export function DomainFormDialog() {
             <code>rootdomain</code>。
           </div>
 
+          {formError ? (
+            <div
+              role="alert"
+              className="border-2 border-border bg-[#ffecef] p-2.5 text-xs font-bold text-foreground"
+            >
+              {formError}
+              <span className="mt-1 block text-foreground/70">
+                输入已保留，修正后可直接重试。
+              </span>
+            </div>
+          ) : null}
+
           <DialogFooter>
             <Button
               type="button"
@@ -126,7 +147,7 @@ export function DomainFormDialog() {
               取消
             </Button>
             <Button type="submit" size="sm" disabled={submitting}>
-              {submitting ? "添加中…" : "添加域名"}
+              {submitting ? "添加中…" : formError ? "重试添加" : "添加域名"}
             </Button>
           </DialogFooter>
         </form>
