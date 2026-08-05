@@ -229,12 +229,23 @@ http://localhost:3000
 - Email / Telegram channel toggles
 - recipient email + Telegram chat id
 
-These are saved via `PUT /api/settings/notify/prefs` (server store under `.data/notify-prefs.json` when the filesystem is writable).
+These are saved via `PUT /api/settings/notify/prefs`.
 
-**Environment variables are only for secrets / bootstrap:**
+**Storage backend (automatic):**
+
+| Priority | Backend | When |
+| --- | --- | --- |
+| 1 | **Vercel Blob** (private JSON) | `BLOB_READ_WRITE_TOKEN` is set (recommended on Vercel) |
+| 2 | Local `.data/notify-prefs.json` | Dev / Node with writable disk |
+| 3 | Process memory | Last resort if both fail |
+
+Hobby Blob usage for a few KB of prefs is effectively free within Vercel free limits.
+
+**Environment variables are only for secrets / bootstrap / storage token:**
 
 | Variable | Purpose |
 | --- | --- |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob RW token (Storage → Blob store) |
 | `RESEND_API_KEY` | Send email via [Resend](https://resend.com) |
 | `NOTIFY_FROM_EMAIL` | From header (default Resend onboarding sender) |
 | `TELEGRAM_BOT_TOKEN` | Bot token from `@BotFather` |
@@ -252,7 +263,7 @@ curl -H "x-cron-secret: $CRON_SECRET" \
   "https://your-app.vercel.app/api/cron/expiry-notify"
 ```
 
-Vercel Cron is declared in `vercel.json` (daily). On serverless, prefer a durable store if the instance filesystem is ephemeral; until then save-from-UI still drives the same process memory + best-effort disk write.
+Vercel Cron is declared in `vercel.json` (daily).
 
 ## Available Pages
 

@@ -6,7 +6,10 @@ import { FlaskConical, LoaderCircle, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
 import type { ServerNotifyPrefs } from "@/features/settings/server-notify-prefs";
-import type { NotifySecretsStatus } from "@/features/settings/use-server-notify-prefs";
+import type {
+  NotifySecretsStatus,
+  NotifyStorageStatus,
+} from "@/features/settings/use-server-notify-prefs";
 import { redirectIfUnauthorized } from "@/lib/api/request-error";
 
 interface TestResponse {
@@ -26,9 +29,11 @@ interface TestResponse {
 export function SettingsNotifyTestPanel({
   draft,
   secrets,
+  storage,
 }: {
   draft: ServerNotifyPrefs;
   secrets: NotifySecretsStatus | null;
+  storage: NotifyStorageStatus | null;
 }) {
   const [testing, setTesting] = useState<"live" | "dry" | null>(null);
   const [lastResult, setLastResult] = useState<TestResponse | null>(null);
@@ -102,15 +107,29 @@ export function SettingsNotifyTestPanel({
         <StatusPill label="Telegram Bot" ok={secrets?.telegramConfigured} />
         <StatusPill label="Cron Secret" ok={secrets?.cronSecretConfigured} />
         <StatusPill
+          label="Vercel Blob"
+          ok={storage?.blobConfigured}
+        />
+        <StatusPill
           label="表单远程渠道"
           ok={draft.channelEmail || draft.channelTelegram}
+        />
+        <StatusPill
+          label={`存储: ${storage?.backend ?? "…"}`}
+          ok={
+            storage
+              ? storage.backend === "blob" || storage.backend === "disk"
+              : undefined
+          }
         />
       </div>
 
       <p className="mt-3 text-[11px] font-bold leading-5 text-foreground/65">
         测试用<strong>当前表单草稿</strong>（不必先保存）。
-        定时任务使用<strong>已保存的服务端配置</strong>。
-        密钥：<code>RESEND_API_KEY</code> / <code>TELEGRAM_BOT_TOKEN</code> /
+        定时任务使用<strong>已保存的服务端配置</strong>
+        {storage?.storePath ? `（${storage.storePath}）` : ""}。
+        生产请配置 <code>BLOB_READ_WRITE_TOKEN</code>；密钥仍用{" "}
+        <code>RESEND_API_KEY</code> / <code>TELEGRAM_BOT_TOKEN</code> /
         <code>CRON_SECRET</code>。
       </p>
 

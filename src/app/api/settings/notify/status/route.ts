@@ -3,7 +3,9 @@ import { NextResponse } from "next/server";
 import { getNotifyEnvStatus } from "@/lib/env/notify-env";
 import { isDnsheConfigured } from "@/lib/env/server-env";
 import {
+  getNotifyPrefsBackendHint,
   getNotifyPrefsStorePath,
+  isBlobPrefsConfigured,
   readServerNotifyPrefs,
 } from "@/lib/notify/prefs-store";
 
@@ -16,6 +18,10 @@ export async function GET() {
     dnsheConfigured: isDnsheConfigured(),
     ...secrets,
     prefs,
-    storePath: getNotifyPrefsStorePath(),
+    storage: {
+      backend: getNotifyPrefsBackendHint(),
+      blobConfigured: isBlobPrefsConfigured(),
+      storePath: getNotifyPrefsStorePath(),
+    },
   });
 }

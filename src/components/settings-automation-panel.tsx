@@ -38,6 +38,7 @@ export function SettingsAutomationPanel() {
   const {
     prefs: serverPrefs,
     secrets,
+    storage,
     loading: serverLoading,
     loaded: serverLoaded,
     error: serverError,
@@ -117,10 +118,18 @@ export function SettingsAutomationPanel() {
       const saved = await saveServer(nextServer);
       setServerDraft({});
 
+      const where =
+        saved.persistedToBlob
+          ? "Vercel Blob"
+          : saved.persistedToDisk
+            ? "本地 .data/"
+            : saved.backend === "memory"
+              ? "仅内存"
+              : saved.backend;
       toast.success("已保存", {
-        description: saved.persistedToDisk
-          ? "服务端通知配置已落盘；本机渠道已更新"
-          : saved.warning || "服务端配置已写入（可能仅内存）",
+        description: saved.warning
+          ? saved.warning
+          : `服务端配置 → ${where}；本机渠道已更新`,
       });
     } catch (error) {
       toast.error("保存失败", {
@@ -167,7 +176,11 @@ export function SettingsAutomationPanel() {
         onLocalPatch={patchLocal}
         serverLoading={serverLoading && !serverLoaded}
       />
-      <SettingsNotifyTestPanel draft={serverView} secrets={secrets} />
+      <SettingsNotifyTestPanel
+        draft={serverView}
+        secrets={secrets}
+        storage={storage}
+      />
       <SettingsRenewSection draft={localView} onPatch={patchLocal} />
 
       <div className="flex flex-wrap items-center justify-between gap-2">
