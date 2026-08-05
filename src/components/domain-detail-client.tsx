@@ -15,7 +15,11 @@ import { DnsRecords } from "@/components/dns-records";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/sonner";
 import { useDomainStore } from "@/features/domains/domain-store";
-import { getErrorMessage } from "@/features/domains/utils";
+import { getErrorMessage, getExpiryDays } from "@/features/domains/utils";
+import {
+  AUTO_RENEW_MAX_DAYS,
+  canRenewByRemainingDays,
+} from "@/features/settings/automation-prefs";
 
 interface DomainDetailClientProps {
   id: string;
@@ -85,15 +89,24 @@ export function DomainDetailClient({ id }: DomainDetailClientProps) {
 
   const currentDomain = domain;
 
+  const remainingDays = getExpiryDays(currentDomain);
+  const renewEligible = canRenewByRemainingDays(remainingDays);
+
   async function handleRenew() {
+    if (!renewEligible) {
+      toast.error("当前不可续费", {
+        description: `仅剩余 ≤${AUTO_RENEW_MAX_DAYS} 天（含已过期）的域名可续费`,
+      });
+      return;
+    }
     setBusyAction("renew");
     try {
       const renewed = await renewDomain(currentDomain.id);
-      toast.success("续期成功", {
-        description: `New expiry: ${renewed.expires_at}`,
+      toast.success("续费成功", {
+        description: `${renewed.full_domain} → ${renewed.expires_at}`,
       });
     } catch (caught) {
-      toast.error("续期失败", {
+      toast.error("续费失败", {
         description: getErrorMessage(caught),
       });
     } finally {
@@ -162,6 +175,7 @@ export function DomainDetailClient({ id }: DomainDetailClientProps) {
           onFocusDanger={focusDangerZone}
           onRefresh={handleRefresh}
           onRenew={handleRenew}
+          renewEligible={renewEligible}
         />
 
         <Tabs defaultValue="overview">
@@ -210,7 +224,7 @@ export function DomainDetailClient({ id }: DomainDetailClientProps) {
             <ActivityTimeline
               activities={domainActivities}
               emptyTitle="暂无动态"
-              emptyDescription="本会话内对该域名的添加、续期、DNS 变更会记录在此（本地审计）。"
+              emptyDescription="本会话内对该域名的添加、续费、DNS 变更会记录在此（本地审计）。"
             />
           </TabsContent>
         </Tabs>

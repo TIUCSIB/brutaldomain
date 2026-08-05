@@ -37,6 +37,7 @@ interface DomainDetailHeaderProps {
   onFocusDanger: () => void;
   onRefresh: () => void;
   onRenew: () => void;
+  renewEligible?: boolean;
 }
 
 export function DomainDetailHeader({
@@ -47,6 +48,7 @@ export function DomainDetailHeader({
   onFocusDanger,
   onRefresh,
   onRenew,
+  renewEligible = true,
 }: DomainDetailHeaderProps) {
   return (
     <>
@@ -95,10 +97,19 @@ export function DomainDetailHeader({
               type="button"
               size="sm"
               onClick={onRenew}
-              disabled={!features.domainRenew || busyAction !== null}
+              disabled={
+                !features.domainRenew ||
+                !renewEligible ||
+                busyAction !== null
+              }
+              title={
+                renewEligible
+                  ? "DNSHE 单次续费"
+                  : "仅剩余 ≤180 天（含已过期）可续费"
+              }
               className={`bg-[#ffd84d] text-foreground hover:bg-amber-300 disabled:bg-muted disabled:text-muted-foreground ${hardButton}`}
             >
-              <RotateCw /> 续期
+              <RotateCw /> {renewEligible ? "续费" : "不可续费"}
             </Button>
             <Button
               type="button"

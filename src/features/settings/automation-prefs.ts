@@ -4,7 +4,10 @@ export const AUTOMATION_PREFS_EVENT = "brutaldomain-automation-prefs";
 export const EXPIRY_NOTIFY_DAY_OPTIONS = [1, 3, 7, 14, 30, 60, 90] as const;
 export type ExpiryNotifyDayOption = (typeof EXPIRY_NOTIFY_DAY_OPTIONS)[number];
 
-export const AUTO_RENEW_DAY_OPTIONS = [1, 3, 7, 14, 30] as const;
+/** DNSHE renew is only valid when remaining days are within this window. */
+export const AUTO_RENEW_MAX_DAYS = 180;
+
+export const AUTO_RENEW_DAY_OPTIONS = [7, 14, 30, 60, 90, 180] as const;
 export type AutoRenewDayOption = (typeof AUTO_RENEW_DAY_OPTIONS)[number];
 
 export interface AutomationPrefs {
@@ -21,13 +24,15 @@ export interface AutomationPrefs {
   channelTelegram: boolean;
   email: string;
   telegramChatId: string;
-  /** Optional Telegram bot token note: never store secrets client-side in production.
-   *  We only keep a local placeholder flag that bot is "configured" via env later. */
+  /** Optional note only — never store Bot Token client-side. */
   telegramHint: string;
-  /** Auto renew */
+  /** Auto renew intention (server job later). DNSHE renew has no year param. */
   autoRenewEnabled: boolean;
+  /**
+   * Trigger when remaining days are within this value (and ≤ 180).
+   * API only supports a plain renew action.
+   */
   autoRenewDays: AutoRenewDayOption;
-  autoRenewYears: 1 | 2 | 3;
   /** Require manual confirm even when auto renew is on (safer default) */
   autoRenewRequireConfirm: boolean;
   /** Only renew Registered domains */
@@ -46,8 +51,7 @@ export const DEFAULT_AUTOMATION_PREFS: AutomationPrefs = {
   telegramChatId: "",
   telegramHint: "",
   autoRenewEnabled: false,
-  autoRenewDays: 7,
-  autoRenewYears: 1,
+  autoRenewDays: 180,
   autoRenewRequireConfirm: true,
   autoRenewRegisteredOnly: true,
 };
@@ -62,12 +66,9 @@ function isNotifyDay(value: unknown): value is ExpiryNotifyDayOption {
 function isAutoRenewDay(value: unknown): value is AutoRenewDayOption {
   return (
     typeof value === "number" &&
+    value <= AUTO_RENEW_MAX_DAYS &&
     (AUTO_RENEW_DAY_OPTIONS as readonly number[]).includes(value)
   );
-}
-
-function isYears(value: unknown): value is 1 | 2 | 3 {
-  return value === 1 || value === 2 || value === 3;
 }
 
 export function normalizeAutomationPrefs(
@@ -93,9 +94,6 @@ export function normalizeAutomationPrefs(
     autoRenewDays: isAutoRenewDay(base.autoRenewDays)
       ? base.autoRenewDays
       : DEFAULT_AUTOMATION_PREFS.autoRenewDays,
-    autoRenewYears: isYears(base.autoRenewYears)
-      ? base.autoRenewYears
-      : DEFAULT_AUTOMATION_PREFS.autoRenewYears,
     autoRenewRequireConfirm: Boolean(base.autoRenewRequireConfirm),
     autoRenewRegisteredOnly: Boolean(base.autoRenewRegisteredOnly),
   };
@@ -143,5 +141,29 @@ export function validateAutomationPrefs(prefs: AutomationPrefs): string[] {
   ) {
     errors.push("至少开启一种通知渠道");
   }
+  if (prefs.autoRenewEnabled && prefs.autoRenewDays > AUTO_RENEW_MAX_DAYS) {
+    errors.push(`自动续费窗口不能超过 ${AUTO_RENEW_MAX_DAYS} 天`);
+  }
   return errors;
+}
+
+/**
+ * DNSHE renew eligibility: remaining days must be ≤ 180
+ * (includes already expired; excludes never-expires).
+ */
+export function canRenewByRemainingDays(
+  remainingDays: number | null,
+): boolean {
+  if (remainingDays === null) return false;
+  return remainingDays <= AUTO_RENEW_MAX_DAYS;
+}
+
+/** Auto-renew trigger: still active and within configured window (≤ 180). */
+export function isWithinAutoRenewWindow(
+  remainingDays: number | null,
+  windowDays: number = AUTO_RENEW_MAX_DAYS,
+): boolean {
+  if (remainingDays === null || remainingDays < 0) return false;
+  const capped = Math.min(windowDays, AUTO_RENEW_MAX_DAYS);
+  return remainingDays <= capped;
 }

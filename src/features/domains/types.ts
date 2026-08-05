@@ -156,7 +156,7 @@ export interface DomainStoreValue {
   ) => Promise<Subdomain | undefined>;
   addDomain: (input: AddDomainInput) => Promise<Subdomain>;
   deleteDomain: (id: number | string) => Promise<void>;
-  renewDomain: (id: number | string, years?: number) => Promise<Subdomain>;
+  renewDomain: (id: number | string) => Promise<Subdomain>;
   refreshDomain: (id: number | string) => Promise<Subdomain>;
   createDnsRecord: (
     domainId: number | string,

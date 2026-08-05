@@ -101,11 +101,11 @@ export function DashboardWeekTodo({ items }: { items: WeekTodoItem[] }) {
     setBusyId(domain.id);
     try {
       const renewed = await renewDomain(domain.id);
-      toast.success("续期成功", {
+      toast.success("续费成功", {
         description: `${renewed.full_domain} → ${renewed.expires_at}`,
       });
     } catch (caught) {
-      toast.error("续期失败", { description: getErrorMessage(caught) });
+      toast.error("续费失败", { description: getErrorMessage(caught) });
     } finally {
       setBusyId(null);
     }
@@ -180,7 +180,7 @@ export function DashboardWeekTodo({ items }: { items: WeekTodoItem[] }) {
                             busyId === item.domain.id ? "animate-spin" : ""
                           }
                         />
-                        续期
+                        续费
                       </Button>
                     ) : null}
                   </div>

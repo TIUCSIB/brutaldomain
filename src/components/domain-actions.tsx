@@ -22,7 +22,11 @@ import {
 import { toast } from "@/components/ui/sonner";
 import { useDomainStore } from "@/features/domains/domain-store";
 import type { Subdomain } from "@/features/domains/types";
-import { getErrorMessage } from "@/features/domains/utils";
+import { getErrorMessage, getExpiryDays } from "@/features/domains/utils";
+import {
+  AUTO_RENEW_MAX_DAYS,
+  canRenewByRemainingDays,
+} from "@/features/settings/automation-prefs";
 
 export interface DomainActionsProps {
   domain: Subdomain;
@@ -35,16 +39,25 @@ export function DomainActions({ domain }: DomainActionsProps) {
   const [confirmRenew, setConfirmRenew] = useState(false);
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
+  const remainingDays = getExpiryDays(domain);
+  const renewEligible = canRenewByRemainingDays(remainingDays);
+
   async function handleRenew() {
+    if (!renewEligible) {
+      toast.error("当前不可续费", {
+        description: `仅剩余 ≤${AUTO_RENEW_MAX_DAYS} 天（含已过期）的域名可续费`,
+      });
+      return;
+    }
     setBusyAction("renew");
     try {
-      const updated = await renewDomain(domain.id, 1);
-      toast.success("续期成功", {
-        description: `${updated.full_domain} · +1 year`,
+      const updated = await renewDomain(domain.id);
+      toast.success("续费成功", {
+        description: `${updated.full_domain} → ${updated.expires_at}`,
       });
       setConfirmRenew(false);
     } catch (error) {
-      toast.error("续期失败", {
+      toast.error("续费失败", {
         description: getErrorMessage(error),
       });
     } finally {
@@ -110,12 +123,16 @@ export function DomainActions({ domain }: DomainActionsProps) {
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem
-            disabled={!features.domainRenew || busyAction !== null}
+            disabled={
+              !features.domainRenew || !renewEligible || busyAction !== null
+            }
             onSelect={() => setConfirmRenew(true)}
             className="rounded-none focus:bg-blue-100 focus:text-slate-950"
           >
             <RotateCw aria-hidden="true" />
-            续期一年
+            {renewEligible
+              ? "续费"
+              : `续费（需 ≤${AUTO_RENEW_MAX_DAYS} 天）`}
           </DropdownMenuItem>
           <DropdownMenuItem
             disabled={!features.domainRefresh || busyAction !== null}
@@ -141,16 +158,17 @@ export function DomainActions({ domain }: DomainActionsProps) {
       <ConfirmActionDialog
         open={confirmRenew}
         onOpenChange={setConfirmRenew}
-        title="确认续期一年？"
+        title="确认续费？"
         description={
           <>
             将为 <strong className="text-foreground">{domain.full_domain}</strong>{" "}
-            续期 1 年，可能消耗 DNSHE 配额。
+            发起续费（DNSHE 单次续费，无年限参数）。剩余{" "}
+            {remainingDays === null ? "—" : remainingDays} 天，可能消耗配额。
           </>
         }
-        confirmLabel="确认续期"
+        confirmLabel="确认续费"
         pending={busyAction === "renew"}
-        pendingLabel="续期中…"
+        pendingLabel="续费中…"
         tone="default"
         onConfirm={() => void handleRenew()}
       />
