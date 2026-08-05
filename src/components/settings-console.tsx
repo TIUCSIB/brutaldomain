@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { BookOpen, KeyRound, RefreshCw, Wallet } from "lucide-react";
+import { KeyRound, RefreshCw, Wallet } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { ConfigErrorBanner } from "@/components/config-error-banner";
@@ -11,7 +11,6 @@ import {
   emptyKeyForm,
   SettingsApiPanel,
 } from "@/components/settings-api-panel";
-import { SettingsHelpPanel } from "@/components/settings-help-panel";
 import { SettingsQuotaPanel } from "@/components/settings-quota-panel";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -147,10 +146,6 @@ export function SettingsConsole() {
               <Wallet className="size-3.5" />
               配额
             </TabsTrigger>
-            <TabsTrigger value="help">
-              <BookOpen className="size-3.5" />
-              部署帮助
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="api">
@@ -189,10 +184,6 @@ export function SettingsConsole() {
               error={error}
               initialized={initialized}
             />
-          </TabsContent>
-
-          <TabsContent value="help">
-            <SettingsHelpPanel />
           </TabsContent>
         </Tabs>
 
