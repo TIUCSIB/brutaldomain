@@ -1,4 +1,4 @@
-import type { DnsRecord, DomainState, Subdomain } from "./types";
+import type { ActivityEntry, DnsRecord, DomainState, Subdomain } from "./types";
 
 /** Prefer incoming values, but keep known fields when detail payload omits them. */
 export function mergeSubdomainRecord(
@@ -61,5 +61,15 @@ export function removeDnsRecord(state: DomainState, recordId: string): DomainSta
   return {
     ...state,
     dnsRecords: state.dnsRecords.filter((record) => record.id !== recordId),
+  };
+}
+
+export function prependActivity(
+  state: DomainState,
+  entry: ActivityEntry,
+): DomainState {
+  return {
+    ...state,
+    activities: [entry, ...state.activities].slice(0, 300),
   };
 }

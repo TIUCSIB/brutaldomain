@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Bar, BarChart, Label, Pie, PieChart, XAxis, YAxis } from "recharts";
 
 import {
@@ -16,6 +17,21 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+
+const STATUS_HREF: Record<string, string> = {
+  registered: "/domains?status=Registered",
+  pending: "/domains?status=Pending",
+  suspended: "/domains?status=Suspended",
+  expired: "/domains?status=Expired",
+  error: "/domains?status=Error",
+};
+
+const RISK_HREF: Record<string, string> = {
+  healthy: "/domains?risk=healthy",
+  never: "/domains?risk=never",
+  expiring: "/domains?risk=within-90&sort=expiry-asc",
+  riskExpired: "/domains?risk=expired&sort=expiry-asc",
+};
 
 /** Pattern from neobrutalism chart-bar-mixed */
 export function StatusBarChart({
@@ -46,9 +62,11 @@ export function StatusBarChart({
     <Card className="gap-3 bg-secondary-background py-4 text-foreground">
       <CardHeader className="px-4 pb-0">
         <CardTitle className="text-base">域名状态</CardTitle>
-        <CardDescription className="text-xs">按注册状态统计</CardDescription>
+        <CardDescription className="text-xs">
+          按注册状态统计 · 点击图例跳转筛选
+        </CardDescription>
       </CardHeader>
-      <CardContent className="px-2 pb-2 sm:px-4">
+      <CardContent className="space-y-3 px-2 pb-2 sm:px-4">
         <ChartContainer config={chartConfig} className="aspect-auto h-40 w-full">
           <BarChart
             accessibilityLayer
@@ -75,6 +93,19 @@ export function StatusBarChart({
             <Bar dataKey="count" radius={4} />
           </BarChart>
         </ChartContainer>
+        <div className="flex flex-wrap gap-1.5">
+          {data
+            .filter((item) => item.count > 0)
+            .map((item) => (
+              <Link
+                key={item.key}
+                href={STATUS_HREF[item.key] ?? "/domains"}
+                className="border-2 border-border bg-secondary-background px-2 py-1 text-[11px] font-black shadow-shadow transition-colors hover:bg-main/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {item.label} {item.count}
+              </Link>
+            ))}
+        </div>
       </CardContent>
     </Card>
   );
@@ -116,9 +147,11 @@ export function RiskDonutChart({
     <Card className="flex flex-col gap-3 bg-secondary-background py-4 text-foreground">
       <CardHeader className="items-center px-4 pb-0">
         <CardTitle className="text-base">到期健康度</CardTitle>
-        <CardDescription className="text-xs">风险结构一览 · 共 {total} 个</CardDescription>
+        <CardDescription className="text-xs">
+          风险结构一览 · 共 {total} 个 · 点击跳转
+        </CardDescription>
       </CardHeader>
-      <CardContent className="flex-1 px-2 pb-2">
+      <CardContent className="flex-1 space-y-3 px-2 pb-2">
         <ChartContainer
           config={chartConfig}
           className="mx-auto aspect-square max-h-[180px]"
@@ -167,6 +200,17 @@ export function RiskDonutChart({
             </Pie>
           </PieChart>
         </ChartContainer>
+        <div className="flex flex-wrap justify-center gap-1.5">
+          {data.map((item) => (
+            <Link
+              key={item.key}
+              href={RISK_HREF[item.key] ?? "/domains"}
+              className="border-2 border-border bg-secondary-background px-2 py-1 text-[11px] font-black shadow-shadow transition-colors hover:bg-main/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {item.label} {item.count}
+            </Link>
+          ))}
+        </div>
       </CardContent>
     </Card>
   );
@@ -176,7 +220,7 @@ export function RiskDonutChart({
 export function ProviderBarChart({
   data,
 }: {
-  data: { provider: string; count: number }[];
+  data: { provider: string; providerId: number; count: number }[];
 }) {
   const chartConfig = {
     count: {
@@ -192,42 +236,55 @@ export function ProviderBarChart({
       <CardHeader className="px-4 pb-0">
         <CardTitle className="text-base">服务商分布</CardTitle>
         <CardDescription className="text-xs">
-          {data.length} 个账户 · 按数量排序
+          {data.length} 个账户 · 点击跳转筛选
         </CardDescription>
       </CardHeader>
-      <CardContent className="px-2 pb-2 sm:px-4">
+      <CardContent className="space-y-3 px-2 pb-2 sm:px-4">
         {data.length === 0 ? (
           <p className="py-6 text-center text-xs font-medium text-foreground/70">
             暂无服务商数据
           </p>
         ) : (
-          <ChartContainer
-            config={chartConfig}
-            className="aspect-auto w-full"
-            style={{ height: chartHeight }}
-          >
-            <BarChart
-              accessibilityLayer
-              data={data}
-              layout="vertical"
-              margin={{ left: -8, right: 8, top: 0, bottom: 0 }}
+          <>
+            <ChartContainer
+              config={chartConfig}
+              className="aspect-auto w-full"
+              style={{ height: chartHeight }}
             >
-              <XAxis type="number" dataKey="count" hide />
-              <YAxis
-                dataKey="provider"
-                type="category"
-                tickLine={false}
-                tickMargin={8}
-                width={36}
-                axisLine={false}
-              />
-              <ChartTooltip
-                cursor={false}
-                content={<ChartTooltipContent hideLabel />}
-              />
-              <Bar dataKey="count" fill="var(--color-count)" radius={4} />
-            </BarChart>
-          </ChartContainer>
+              <BarChart
+                accessibilityLayer
+                data={data}
+                layout="vertical"
+                margin={{ left: -8, right: 8, top: 0, bottom: 0 }}
+              >
+                <XAxis type="number" dataKey="count" hide />
+                <YAxis
+                  dataKey="provider"
+                  type="category"
+                  tickLine={false}
+                  tickMargin={8}
+                  width={36}
+                  axisLine={false}
+                />
+                <ChartTooltip
+                  cursor={false}
+                  content={<ChartTooltipContent hideLabel />}
+                />
+                <Bar dataKey="count" fill="var(--color-count)" radius={4} />
+              </BarChart>
+            </ChartContainer>
+            <div className="flex flex-wrap gap-1.5">
+              {data.map((item) => (
+                <Link
+                  key={item.providerId}
+                  href={`/domains?provider=${item.providerId}`}
+                  className="border-2 border-border bg-secondary-background px-2 py-1 text-[11px] font-black shadow-shadow transition-colors hover:bg-main/15"
+                >
+                  {item.provider} · {item.count}
+                </Link>
+              ))}
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

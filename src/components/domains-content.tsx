@@ -5,11 +5,13 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { ConfigErrorBanner } from "@/components/config-error-banner";
 import { DomainFilters } from "@/components/domain-filters";
-import { DomainListEmpty } from "@/components/domain-list-empty";
-import { DomainListPagination } from "@/components/domain-list-pagination";
-import { DomainMobileList } from "@/components/domain-mobile-list";
+import {
+  DomainListPrefsBar,
+  useDomainListPrefs,
+} from "@/components/domain-list-prefs-bar";
+import { DomainsListSection } from "@/components/domains-list-section";
 import { DomainsPageActions } from "@/components/domains-page-actions";
-import { DomainTable } from "@/components/domain-table";
+import { DomainsListSkeleton } from "@/components/page-skeletons";
 import { PageHeader } from "@/components/page-header";
 import { toast } from "@/components/ui/sonner";
 import { buildDomainFilterPresetChips } from "@/features/domains/domain-filter-presets";
@@ -33,6 +35,7 @@ export function DomainsContent() {
   const searchParams = useSearchParams();
   const { domains, error, features, hydrated, initialized, loading, refreshDomains } =
     useDomainStore();
+  const { columns } = useDomainListPrefs();
 
   const { search, status, provider, expiryRisk, sort, page, pageSize } =
     readDomainListParams(searchParams);
@@ -170,6 +173,10 @@ export function DomainsContent() {
     );
   }
 
+  if (!hydrated || (!initialized && loading && domains.length === 0)) {
+    return <DomainsListSkeleton />;
+  }
+
   return (
     <AppShell>
       <div className="mx-auto w-full max-w-[1280px] space-y-4">
@@ -221,73 +228,51 @@ export function DomainsContent() {
           onReset={resetFilters}
         />
 
-        <section aria-labelledby="domain-list-title" className="space-y-3">
-          <div className="flex flex-wrap items-end justify-between gap-2">
-            <div>
-              <h2 id="domain-list-title" className="text-lg font-black tracking-tight">
-                域名清单
-              </h2>
-              <p aria-live="polite" className="mt-0.5 text-xs font-bold text-foreground/70">
-                {!hydrated || !initialized
-                  ? "正在加载域名…"
-                  : `${filteredDomains.length} 条结果`}
-                {search ? ` · 搜索 “${search}”` : ""}
-              </p>
-            </div>
-          </div>
+        <DomainListPrefsBar
+          currentQuery={searchParams.toString()}
+          onApplyView={(query) => {
+            router.replace(query ? `${pathname}?${query}` : pathname, {
+              scroll: false,
+            });
+          }}
+        />
 
-          {visibleDomains.length > 0 ? (
-            <>
-              <DomainTable
-                domains={visibleDomains}
-                selectedIds={selectedIds}
-                onToggleSelect={toggleSelect}
-                onToggleSelectAll={toggleSelectAllVisible}
-              />
-              <DomainMobileList
-                domains={visibleDomains}
-                selectedIds={selectedIds}
-                onToggleSelect={toggleSelect}
-              />
-            </>
-          ) : (
-            <DomainListEmpty
-              error={error}
-              filtersActive={filtersActive}
-              canCreate={features.domainCreate}
-              onReset={resetFilters}
-            />
-          )}
-
-          <DomainListPagination
-            rangeStart={rangeStart}
-            rangeEnd={rangeEnd}
-            total={filteredDomains.length}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            pageSize={pageSize}
-            onPageSizeChange={(value) =>
-              setParams({
-                pageSize: value === "20" ? null : value,
-                page: null,
-              })
-            }
-            onPrev={() =>
-              setParams(
-                {
-                  page: currentPage - 1 <= 1 ? null : String(currentPage - 1),
-                },
-                { resetPage: false },
-              )
-            }
-            onNext={() =>
-              setParams(
-                { page: String(currentPage + 1) },
-                { resetPage: false },
-              )
-            }
-          />
-        </section>
+        <DomainsListSection
+          filteredCount={filteredDomains.length}
+          search={search}
+          initialized={initialized}
+          visibleDomains={visibleDomains}
+          selectedIds={selectedIds}
+          columns={columns}
+          error={error}
+          filtersActive={filtersActive}
+          canCreate={features.domainCreate}
+          rangeStart={rangeStart}
+          rangeEnd={rangeEnd}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          onToggleSelect={toggleSelect}
+          onToggleSelectAll={toggleSelectAllVisible}
+          onReset={resetFilters}
+          onPageSizeChange={(value) =>
+            setParams({
+              pageSize: value === "20" ? null : value,
+              page: null,
+            })
+          }
+          onPrev={() =>
+            setParams(
+              {
+                page: currentPage - 1 <= 1 ? null : String(currentPage - 1),
+              },
+              { resetPage: false },
+            )
+          }
+          onNext={() =>
+            setParams({ page: String(currentPage + 1) }, { resetPage: false })
+          }
+        />
       </div>
     </AppShell>
   );

@@ -58,7 +58,7 @@ const actionMeta: Record<
 
 export function ActivityTimeline({
   activities,
-  emptyDescription = "Changes to this domain will appear here.",
+  emptyDescription = "本会话操作记录会显示在这里。",
   emptyTitle = "暂无动态",
 }: ActivityTimelineProps) {
   if (activities.length === 0) {

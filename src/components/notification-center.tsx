@@ -5,6 +5,7 @@ import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { Bell, Wallet } from "lucide-react";
 
 import { NotificationAlertList } from "@/components/notification-alert-list";
+import { NotificationHistoryPanel } from "@/components/notification-history-panel";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,6 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "@/components/ui/sonner";
 import { useDomainStore } from "@/features/domains/domain-store";
 import {
   getExpiryAlerts,
@@ -22,6 +24,12 @@ import {
   type ExpiryNotifyPrefs,
   type NotifyWindowDays,
 } from "@/features/domains/expiry-alerts";
+import {
+  disableBrowserNotify,
+  enableBrowserNotify,
+  useBrowserNotifyEffects,
+  useBrowserNotifyState,
+} from "@/features/domains/use-browser-notify";
 import { useSettingsStore } from "@/features/settings/settings-store";
 
 const PREFS_EVENT = "brutaldomain-expiry-prefs";
@@ -75,6 +83,7 @@ export function NotificationCenter() {
     () => JSON.parse(prefsJson) as ExpiryNotifyPrefs,
     [prefsJson],
   );
+  const { prefs: browserPrefs, history } = useBrowserNotifyState();
 
   const alerts = useMemo(
     () =>
@@ -89,6 +98,13 @@ export function NotificationCenter() {
     settingsInitialized &&
     quota !== null &&
     quota.available <= QUOTA_WARN_THRESHOLD;
+
+  useBrowserNotifyEffects({
+    alerts,
+    quotaLow: Boolean(quotaLow),
+    quotaAvailable: quota?.available,
+    enabled: browserPrefs.enabled,
+  });
 
   const count = alerts.length + (quotaLow ? 1 : 0);
   const badgeText = count > 99 ? "99+" : String(count);
@@ -120,6 +136,18 @@ export function NotificationCenter() {
   const clearDismissed = useCallback(() => {
     setPrefs({ ...prefs, dismissed: {} });
   }, [prefs]);
+
+  async function toggleBrowserNotify() {
+    if (browserPrefs.enabled) {
+      disableBrowserNotify();
+      toast.success("已关闭浏览器通知");
+      return;
+    }
+    const result = await enableBrowserNotify();
+    if (result === "granted") toast.success("已开启浏览器通知");
+    else if (result === "unsupported") toast.error("当前浏览器不支持通知");
+    else toast.error("未获得通知权限");
+  }
 
   return (
     <DropdownMenu>
@@ -163,6 +191,15 @@ export function NotificationCenter() {
               {days} 天
             </Button>
           ))}
+          <Button
+            type="button"
+            size="sm"
+            variant={browserPrefs.enabled ? "default" : "outline"}
+            className="h-7 rounded-none px-2 text-[11px]"
+            onClick={() => void toggleBrowserNotify()}
+          >
+            浏览器通知
+          </Button>
           {Object.keys(prefs.dismissed).length > 0 ? (
             <Button
               type="button"
@@ -201,6 +238,8 @@ export function NotificationCenter() {
           windowDays={prefs.windowDays}
           onDismiss={dismissOne}
         />
+
+        <NotificationHistoryPanel history={history} />
 
         <DropdownMenuSeparator className="bg-border" />
         <div className="flex flex-col gap-1.5 p-2">

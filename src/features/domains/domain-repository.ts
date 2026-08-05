@@ -14,7 +14,7 @@ export const DNSHE_DOMAIN_FEATURES: DomainFeatures = {
   domainRenew: true,
   domainRefresh: false,
   dnsWrite: true,
-  activityLog: false,
+  activityLog: true,
   proxyEditing: false,
 };
 

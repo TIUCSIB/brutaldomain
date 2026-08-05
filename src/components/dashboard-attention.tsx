@@ -84,6 +84,11 @@ export function DashboardQuickLinks() {
           </Link>
         </Button>
         <Button asChild variant="outline" size="sm" className="justify-between">
+          <Link href="/dns">
+            全局 DNS 搜索 <ArrowRight />
+          </Link>
+        </Button>
+        <Button asChild variant="outline" size="sm" className="justify-between">
           <Link href="/whois">
             <span className="inline-flex items-center gap-2">
               <Radar className="size-3.5" /> WHOIS 查询

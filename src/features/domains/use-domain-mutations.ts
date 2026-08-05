@@ -10,9 +10,11 @@ import {
   renewDomainRequest,
   updateDnsRecordRequest,
 } from "./domain-api";
+import { appendLocalActivity } from "./local-activity";
 import { toDomainId } from "./domain-store-controller-utils";
 import {
   mergeDomain,
+  prependActivity,
   removeDnsRecord,
   replaceDnsRecords,
   upsertDnsRecord,
@@ -37,6 +39,13 @@ interface MutationArgs {
   ) => Promise<Subdomain | undefined>;
 }
 
+function withActivity(
+  state: DomainState,
+  action: Parameters<typeof appendLocalActivity>[0],
+) {
+  return prependActivity(state, appendLocalActivity(action));
+}
+
 export function useDomainMutations({
   markDetailLoaded,
   replaceState,
@@ -49,7 +58,18 @@ export function useDomainMutations({
     async (input: AddDomainInput) => {
       const detail = await createDomainRequest(input);
       const withDomain = mergeDomain(stateRef.current, detail.domain);
-      replaceState(replaceDnsRecords(withDomain, detail.domain.id, detail.dnsRecords));
+      const withDns = replaceDnsRecords(
+        withDomain,
+        detail.domain.id,
+        detail.dnsRecords,
+      );
+      replaceState(
+        withActivity(withDns, {
+          action: "domain.added",
+          domainId: detail.domain.id,
+          message: `添加域名 ${detail.domain.full_domain}`,
+        }),
+      );
       markDetailLoaded(detail.domain.id);
       return detail.domain;
     },
@@ -58,13 +78,14 @@ export function useDomainMutations({
 
   const deleteDomain = useCallback(
     async (id: number | string) => {
-      await deleteDomainRequest(id);
       const domainId = toDomainId(id);
+      const existing = stateRef.current.domains.find((item) => item.id === domainId);
+      await deleteDomainRequest(id);
       loadedDetailIdsRef.current = loadedDetailIdsRef.current.filter(
         (item) => item !== domainId,
       );
       setLoadedDetailIds(loadedDetailIdsRef.current);
-      replaceState({
+      const nextState: DomainState = {
         domains: stateRef.current.domains.filter((item) => item.id !== domainId),
         dnsRecords: stateRef.current.dnsRecords.filter(
           (record) => record.domain_id !== domainId,
@@ -72,7 +93,14 @@ export function useDomainMutations({
         activities: stateRef.current.activities.filter(
           (activity) => activity.domain_id !== domainId,
         ),
-      });
+      };
+      replaceState(
+        withActivity(nextState, {
+          action: "domain.deleted",
+          domainId: null,
+          message: `删除域名 ${existing?.full_domain ?? `#${domainId}`}`,
+        }),
+      );
     },
     [loadedDetailIdsRef, replaceState, setLoadedDetailIds, stateRef],
   );
@@ -81,7 +109,18 @@ export function useDomainMutations({
     async (id: number | string) => {
       const detail = await renewDomainRequest(id);
       const withDomain = mergeDomain(stateRef.current, detail.domain);
-      replaceState(replaceDnsRecords(withDomain, detail.domain.id, detail.dnsRecords));
+      const withDns = replaceDnsRecords(
+        withDomain,
+        detail.domain.id,
+        detail.dnsRecords,
+      );
+      replaceState(
+        withActivity(withDns, {
+          action: "domain.renewed",
+          domainId: detail.domain.id,
+          message: `续期 ${detail.domain.full_domain} → ${detail.domain.expires_at}`,
+        }),
+      );
       markDetailLoaded(detail.domain.id);
       return detail.domain;
     },
@@ -92,15 +131,29 @@ export function useDomainMutations({
     async (id: number | string) => {
       const detail = await refreshDomainDetail(id, { force: true });
       if (!detail) throw new Error("Domain not found");
+      replaceState(
+        withActivity(stateRef.current, {
+          action: "domain.refreshed",
+          domainId: detail.id,
+          message: `刷新状态 ${detail.full_domain}`,
+        }),
+      );
       return detail;
     },
-    [refreshDomainDetail],
+    [refreshDomainDetail, replaceState, stateRef],
   );
 
   const createDnsRecord = useCallback(
     async (domainId: number | string, input: CreateDnsRecordInput) => {
       const { record } = await createDnsRecordRequest(domainId, input);
-      replaceState(upsertDnsRecord(stateRef.current, record));
+      const withRecord = upsertDnsRecord(stateRef.current, record);
+      replaceState(
+        withActivity(withRecord, {
+          action: "dns.created",
+          domainId: record.domain_id,
+          message: `新增 DNS ${record.type} ${record.name} → ${record.content}`,
+        }),
+      );
       return record;
     },
     [replaceState, stateRef],
@@ -113,7 +166,14 @@ export function useDomainMutations({
       input: UpdateDnsRecordInput,
     ) => {
       const { record } = await updateDnsRecordRequest(domainId, recordId, input);
-      replaceState(upsertDnsRecord(stateRef.current, record));
+      const withRecord = upsertDnsRecord(stateRef.current, record);
+      replaceState(
+        withActivity(withRecord, {
+          action: "dns.updated",
+          domainId: record.domain_id,
+          message: `更新 DNS ${record.type} ${record.name} → ${record.content}`,
+        }),
+      );
       return record;
     },
     [replaceState, stateRef],
@@ -121,8 +181,20 @@ export function useDomainMutations({
 
   const deleteDnsRecord = useCallback(
     async (domainId: number | string, recordId: string) => {
+      const existing = stateRef.current.dnsRecords.find(
+        (record) => record.id === recordId,
+      );
       await deleteDnsRecordRequest(domainId, recordId);
-      replaceState(removeDnsRecord(stateRef.current, recordId));
+      const without = removeDnsRecord(stateRef.current, recordId);
+      replaceState(
+        withActivity(without, {
+          action: "dns.deleted",
+          domainId: toDomainId(domainId),
+          message: existing
+            ? `删除 DNS ${existing.type} ${existing.name}`
+            : `删除 DNS 记录 ${recordId}`,
+        }),
+      );
     },
     [replaceState, stateRef],
   );

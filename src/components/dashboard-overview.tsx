@@ -27,6 +27,7 @@ import {
   buildWeekTodos,
   DashboardWeekTodo,
 } from "@/components/dashboard-week-todo";
+import { DashboardSkeleton } from "@/components/page-skeletons";
 import { StatCard } from "@/components/stat-card";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
@@ -121,6 +122,7 @@ export function DashboardOverview() {
       ].filter((item) => item.count > 0),
       providerData: providers.slice(0, 5).map((row) => ({
         provider: `#${row.id}`,
+        providerId: row.id,
         count: row.count,
       })),
       attention,
@@ -138,6 +140,10 @@ export function DashboardOverview() {
     } finally {
       setRefreshing(false);
     }
+  }
+
+  if (!hydrated || (!initialized && loading && domains.length === 0)) {
+    return <DashboardSkeleton />;
   }
 
   return (

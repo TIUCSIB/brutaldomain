@@ -10,6 +10,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  DEFAULT_DOMAIN_COLUMNS,
+  type DomainColumnPrefs,
+} from "@/features/domains/domain-list-prefs";
 import type { Subdomain } from "@/features/domains/types";
 import {
   formatDomainDate,
@@ -22,6 +26,7 @@ export interface DomainTableProps {
   selectedIds?: ReadonlySet<number>;
   onToggleSelect?: (id: number) => void;
   onToggleSelectAll?: () => void;
+  columns?: DomainColumnPrefs;
 }
 
 const statusStyles = {
@@ -44,6 +49,7 @@ export function DomainTable({
   selectedIds,
   onToggleSelect,
   onToggleSelectAll,
+  columns = DEFAULT_DOMAIN_COLUMNS,
 }: DomainTableProps) {
   const selectable = Boolean(onToggleSelect && onToggleSelectAll && selectedIds);
   const allSelected =
@@ -56,9 +62,9 @@ export function DomainTable({
     domains.some((domain) => selectedIds!.has(domain.id));
 
   return (
-    <div className="hidden lg:block">
+    <div className="hidden max-h-[70vh] overflow-auto lg:block">
       <Table className="min-w-[880px]">
-        <TableHeader className="bg-[#1261ff] text-white [&_tr]:border-slate-950">
+        <TableHeader className="sticky top-0 z-10 bg-[#1261ff] text-white [&_tr]:border-slate-950">
           <TableRow className="border-slate-950 hover:bg-[#1261ff]">
             {selectable ? (
               <TableHead className="w-10 text-white">
@@ -75,11 +81,21 @@ export function DomainTable({
               </TableHead>
             ) : null}
             <TableHead className="text-white">域名</TableHead>
-            <TableHead className="text-white">状态</TableHead>
-            <TableHead className="text-white">Provider</TableHead>
-            <TableHead className="text-white">到期时间</TableHead>
-            <TableHead className="text-white">创建时间</TableHead>
-            <TableHead className="text-right text-white">操作</TableHead>
+            {columns.status ? (
+              <TableHead className="text-white">状态</TableHead>
+            ) : null}
+            {columns.provider ? (
+              <TableHead className="text-white">Provider</TableHead>
+            ) : null}
+            {columns.expiry ? (
+              <TableHead className="text-white">到期时间</TableHead>
+            ) : null}
+            {columns.created ? (
+              <TableHead className="text-white">创建时间</TableHead>
+            ) : null}
+            {columns.actions ? (
+              <TableHead className="text-right text-white">操作</TableHead>
+            ) : null}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -113,30 +129,40 @@ export function DomainTable({
                     ID {domain.id}
                   </span>
                 </TableCell>
-                <TableCell>
-                  <Badge
-                    className={`rounded-none border-slate-950 shadow-[2px_2px_0_0_#0f172a] ${statusStyles[domain.status]}`}
-                  >
-                    {domain.status}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <span className="border-2 border-slate-950 bg-blue-50 px-2 py-1 font-black">
-                    {formatProviderLabel(domain.provider_account_id)}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <span className="font-black">{expiry.label}</span>
-                  <span
-                    className={`mt-1 block w-fit px-1.5 py-0.5 text-xs font-bold ${expiryStyles[expiry.tone]}`}
-                  >
-                    {expiry.detail}
-                  </span>
-                </TableCell>
-                <TableCell>{formatDomainDate(domain.created_at)}</TableCell>
-                <TableCell className="text-right">
-                  <DomainActions domain={domain} />
-                </TableCell>
+                {columns.status ? (
+                  <TableCell>
+                    <Badge
+                      className={`rounded-none border-slate-950 shadow-[2px_2px_0_0_#0f172a] ${statusStyles[domain.status]}`}
+                    >
+                      {domain.status}
+                    </Badge>
+                  </TableCell>
+                ) : null}
+                {columns.provider ? (
+                  <TableCell>
+                    <span className="border-2 border-slate-950 bg-blue-50 px-2 py-1 font-black">
+                      {formatProviderLabel(domain.provider_account_id)}
+                    </span>
+                  </TableCell>
+                ) : null}
+                {columns.expiry ? (
+                  <TableCell>
+                    <span className="font-black">{expiry.label}</span>
+                    <span
+                      className={`mt-1 block w-fit px-1.5 py-0.5 text-xs font-bold ${expiryStyles[expiry.tone]}`}
+                    >
+                      {expiry.detail}
+                    </span>
+                  </TableCell>
+                ) : null}
+                {columns.created ? (
+                  <TableCell>{formatDomainDate(domain.created_at)}</TableCell>
+                ) : null}
+                {columns.actions ? (
+                  <TableCell className="text-right">
+                    <DomainActions domain={domain} />
+                  </TableCell>
+                ) : null}
               </TableRow>
             );
           })}

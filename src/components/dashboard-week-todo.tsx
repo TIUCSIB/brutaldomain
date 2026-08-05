@@ -1,9 +1,13 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import {
   AlertOctagon,
   CalendarClock,
   CheckCircle2,
   CircleAlert,
+  RotateCw,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -15,9 +19,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { toast } from "@/components/ui/sonner";
+import { useDomainStore } from "@/features/domains/domain-store";
 import type { Subdomain } from "@/features/domains/types";
 import {
   formatExpiry,
+  getErrorMessage,
   getExpiryDays,
   isExpiringWithin,
 } from "@/features/domains/utils";
@@ -83,9 +90,26 @@ const kindIcon = {
 } as const;
 
 export function DashboardWeekTodo({ items }: { items: WeekTodoItem[] }) {
+  const { features, renewDomain } = useDomainStore();
+  const [busyId, setBusyId] = useState<number | null>(null);
   const expiredCount = items.filter((item) => item.kind === "expired").length;
   const weekCount = items.filter((item) => item.kind === "week").length;
   const errorCount = items.filter((item) => item.kind === "error").length;
+
+  async function handleRenew(domain: Subdomain) {
+    if (!features.domainRenew) return;
+    setBusyId(domain.id);
+    try {
+      const renewed = await renewDomain(domain.id);
+      toast.success("续期成功", {
+        description: `${renewed.full_domain} → ${renewed.expires_at}`,
+      });
+    } catch (caught) {
+      toast.error("续期失败", { description: getErrorMessage(caught) });
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   return (
     <Card className="gap-0 bg-secondary-background py-0 text-foreground">
@@ -118,25 +142,48 @@ export function DashboardWeekTodo({ items }: { items: WeekTodoItem[] }) {
           <ul className="divide-y-2 divide-border">
             {items.map((item) => {
               const Icon = kindIcon[item.kind];
+              const canRenew =
+                features.domainRenew &&
+                (item.kind === "expired" || item.kind === "week");
               return (
-                <li key={`${item.kind}-${item.domain.id}`}>
+                <li
+                  key={`${item.kind}-${item.domain.id}`}
+                  className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                >
                   <Link
                     href={`/domains/${item.domain.id}`}
-                    className="flex flex-col gap-1.5 px-4 py-3 transition-colors hover:bg-main/10 sm:flex-row sm:items-center sm:justify-between"
+                    className="min-w-0 flex-1 transition-colors hover:text-blue-800"
                   >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-black">
-                        {item.domain.full_domain}
-                      </p>
-                      <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-bold text-foreground/70">
-                        <Icon className="size-3" aria-hidden />
-                        {item.domain.status}
-                      </p>
-                    </div>
+                    <p className="truncate text-sm font-black">
+                      {item.domain.full_domain}
+                    </p>
+                    <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-bold text-foreground/70">
+                      <Icon className="size-3" aria-hidden />
+                      {item.domain.status}
+                    </p>
+                  </Link>
+                  <div className="flex flex-wrap items-center gap-2">
                     <Badge className={`w-fit text-[11px] ${kindTone[item.kind]}`}>
                       {item.label}
                     </Badge>
-                  </Link>
+                    {canRenew ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 rounded-none px-2 text-[11px]"
+                        disabled={busyId === item.domain.id}
+                        onClick={() => void handleRenew(item.domain)}
+                      >
+                        <RotateCw
+                          className={
+                            busyId === item.domain.id ? "animate-spin" : ""
+                          }
+                        />
+                        续期
+                      </Button>
+                    ) : null}
+                  </div>
                 </li>
               );
             })}

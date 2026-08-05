@@ -1,10 +1,11 @@
-import { Download, Plus, Search } from "lucide-react";
+import { Download, Layers3, Plus, Search, Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type {
   DnsBatchTemplate,
   DnsTemplate,
 } from "@/features/domains/dns-templates";
+import { DNS_RECORD_TYPES, type DnsRecordType } from "@/features/domains/types";
 
 export function DnsRecordsHeader({
   titleId,
@@ -16,6 +17,7 @@ export function DnsRecordsHeader({
   canWrite,
   exportDisabled,
   onExport,
+  onImportClick,
   onAdd,
 }: {
   titleId: string;
@@ -27,6 +29,7 @@ export function DnsRecordsHeader({
   canWrite: boolean;
   exportDisabled: boolean;
   onExport: () => void;
+  onImportClick: () => void;
   onAdd: () => void;
 }) {
   return (
@@ -51,6 +54,15 @@ export function DnsRecordsHeader({
         >
           <Download aria-hidden="true" /> 导出
         </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onImportClick}
+          disabled={!canWrite}
+        >
+          <Upload aria-hidden="true" /> 导入
+        </Button>
         <Button type="button" size="sm" onClick={onAdd} disabled={!canWrite}>
           <Plus aria-hidden="true" /> 添加记录
         </Button>
@@ -63,6 +75,10 @@ export function DnsRecordsFilters({
   canWrite,
   query,
   onQueryChange,
+  typeFilter,
+  onTypeFilterChange,
+  groupByType,
+  onGroupByTypeChange,
   templates,
   batchTemplates,
   batchBusy,
@@ -72,6 +88,10 @@ export function DnsRecordsFilters({
   canWrite: boolean;
   query: string;
   onQueryChange: (value: string) => void;
+  typeFilter: DnsRecordType | "all";
+  onTypeFilterChange: (value: DnsRecordType | "all") => void;
+  groupByType: boolean;
+  onGroupByTypeChange: (value: boolean) => void;
   templates: readonly DnsTemplate[];
   batchTemplates: readonly DnsBatchTemplate[];
   batchBusy: boolean;
@@ -80,18 +100,47 @@ export function DnsRecordsFilters({
 }) {
   return (
     <div className="flex flex-col gap-2 border-b-2 border-border p-3">
-      <div className="relative max-w-sm">
-        <Search
-          aria-hidden="true"
-          className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-main"
-        />
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => onQueryChange(event.target.value)}
-          placeholder="搜索类型 / 名称 / 内容…"
-          className="h-9 w-full rounded-none border-2 border-border bg-secondary-background pl-8 pr-3 text-xs font-bold shadow-shadow outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        />
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="relative max-w-sm flex-1">
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-main"
+          />
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => onQueryChange(event.target.value)}
+            placeholder="搜索类型 / 名称 / 内容…"
+            className="h-9 w-full rounded-none border-2 border-border bg-secondary-background pr-3 pl-8 text-xs font-bold shadow-shadow outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          <select
+            aria-label="按类型筛选"
+            value={typeFilter}
+            onChange={(event) =>
+              onTypeFilterChange(event.target.value as DnsRecordType | "all")
+            }
+            className="h-9 rounded-none border-2 border-border bg-secondary-background px-2 text-xs font-bold shadow-shadow"
+          >
+            <option value="all">全部类型</option>
+            {DNS_RECORD_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+          <Button
+            type="button"
+            size="sm"
+            variant={groupByType ? "default" : "outline"}
+            className="h-9 rounded-none"
+            onClick={() => onGroupByTypeChange(!groupByType)}
+          >
+            <Layers3 aria-hidden="true" className="size-3.5" />
+            按类型分组
+          </Button>
+        </div>
       </div>
       {canWrite ? (
         <div className="space-y-2">

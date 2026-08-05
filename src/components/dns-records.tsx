@@ -1,6 +1,9 @@
 "use client";
 
+import { useRef } from "react";
+
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
+import { DnsImportDialog } from "@/components/dns-import-dialog";
 import {
   DnsRecordsFilters,
   DnsRecordsHeader,
@@ -44,6 +47,7 @@ export function DnsRecords({
   updateRecord,
   zoneDomain,
 }: DnsRecordsProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const ctrl = useDnsRecordsController({
     domainId,
     zoneDomain,
@@ -58,16 +62,35 @@ export function DnsRecords({
       aria-labelledby="dns-records-title"
       className="border-2 border-border bg-secondary-background shadow-shadow"
     >
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv,text/csv"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = () => ctrl.handleImportFile(String(reader.result ?? ""));
+          reader.readAsText(file);
+          event.target.value = "";
+        }}
+      />
       <DnsRecordsHeader
         titleId="dns-records-title"
         zoneDomain={zoneDomain}
         recordCount={records.length}
         filteredCount={ctrl.visibleRecords.length}
-        queryActive={Boolean(ctrl.query.trim())}
+        queryActive={
+          Boolean(ctrl.query.trim()) || ctrl.typeFilter !== "all"
+        }
         sessionLabel={ctrl.sessionLabel}
         canWrite={canWrite}
         exportDisabled={records.length === 0}
         onExport={ctrl.handleExport}
+        onImportClick={() => {
+          ctrl.setImportOpen(true);
+        }}
         onAdd={() => ctrl.openCreate()}
       />
       {!canWrite ? (
@@ -80,6 +103,10 @@ export function DnsRecords({
         canWrite={canWrite}
         query={ctrl.query}
         onQueryChange={ctrl.setQuery}
+        typeFilter={ctrl.typeFilter}
+        onTypeFilterChange={ctrl.setTypeFilter}
+        groupByType={ctrl.groupByType}
+        onGroupByTypeChange={ctrl.setGroupByType}
         templates={ctrl.templates}
         batchTemplates={ctrl.batchTemplates}
         batchBusy={ctrl.batchBusy}
@@ -93,6 +120,7 @@ export function DnsRecords({
         onDelete={ctrl.setDeleteTarget}
         onEdit={ctrl.openEdit}
         records={ctrl.visibleRecords}
+        groupedRecords={ctrl.groupedRecords}
       />
       <RecordEditorDialog
         editingRecord={ctrl.editingRecord}
@@ -112,6 +140,15 @@ export function DnsRecords({
         onOpenChange={(open) => !open && ctrl.setDeleteTarget(null)}
         record={ctrl.deleteTarget}
         zoneDomain={zoneDomain}
+      />
+      <DnsImportDialog
+        open={ctrl.importOpen}
+        onOpenChange={ctrl.setImportOpen}
+        diff={ctrl.importDiff}
+        errors={ctrl.importErrors}
+        pending={ctrl.importBusy}
+        onPickFile={ctrl.handleImportFile}
+        onConfirm={() => void ctrl.confirmImport()}
       />
       <ConfirmActionDialog
         open={ctrl.batchId !== null}

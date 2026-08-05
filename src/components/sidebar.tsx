@@ -6,6 +6,7 @@ import {
   CircleDotDashed,
   Globe2,
   LayoutDashboard,
+  Network,
   Radar,
   Settings,
   type LucideIcon,
@@ -27,6 +28,7 @@ type NavigationItem = {
 const navigation: NavigationItem[] = [
   { label: "概览", href: "/dashboard", icon: LayoutDashboard },
   { label: "域名", href: "/domains", icon: Globe2 },
+  { label: "DNS", href: "/dns", icon: Network },
   { label: "WHOIS", href: "/whois", icon: Radar },
   { label: "设置", href: "/settings", icon: Settings },
 ];

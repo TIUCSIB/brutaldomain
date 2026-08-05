@@ -22,6 +22,10 @@ import {
   getServerHydrationSnapshot,
   subscribeToHydration,
 } from "./domain-store-persistence";
+import {
+  mergeActivities,
+  readLocalActivities,
+} from "./local-activity";
 import { mergeDomain, replaceDnsRecords } from "./domain-store-state";
 import { useDomainMutations } from "./use-domain-mutations";
 import type {
@@ -96,7 +100,7 @@ export function useDomainStoreController(): DomainStoreValue {
       dnsRecords: stateRef.current.dnsRecords.filter((record) =>
         domainIds.has(record.domain_id),
       ),
-      activities: response.activities,
+      activities: mergeActivities(response.activities, readLocalActivities()),
     });
   }, [replaceState]);
 
@@ -168,9 +172,17 @@ export function useDomainStoreController(): DomainStoreValue {
         setFeatures(response.features);
         setError(null);
         const withDomain = mergeDomain(stateRef.current, response.domain);
+        const withDns = replaceDnsRecords(
+          withDomain,
+          response.domain.id,
+          response.dnsRecords,
+        );
         replaceState({
-          ...replaceDnsRecords(withDomain, response.domain.id, response.dnsRecords),
-          activities: response.activities,
+          ...withDns,
+          activities: mergeActivities(
+            response.activities,
+            readLocalActivities(),
+          ),
         });
         markDetailLoaded(response.domain.id);
         return response.domain;

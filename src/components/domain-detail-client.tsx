@@ -210,7 +210,7 @@ export function DomainDetailClient({ id }: DomainDetailClientProps) {
             <ActivityTimeline
               activities={domainActivities}
               emptyTitle="暂无动态"
-              emptyDescription="DNSHE 文档未提供审计日志接口，因此这里不会展示远程操作历史。"
+              emptyDescription="本会话内对该域名的添加、续期、DNS 变更会记录在此（本地审计）。"
             />
           </TabsContent>
         </Tabs>
