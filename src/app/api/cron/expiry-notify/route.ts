@@ -1,23 +1,12 @@
 import { NextResponse } from "next/server";
 
 import { DNSHE_NOT_CONFIGURED_MESSAGE } from "@/lib/api/dnshe-config-error";
-import {
-  isCronAuthorized,
-  readCronSecret,
-  readDefaultNotifyEmail,
-  readDefaultTelegramChatId,
-} from "@/lib/env/notify-env";
+import { isCronAuthorized, readCronSecret } from "@/lib/env/notify-env";
 import { isDnsheConfigured } from "@/lib/env/server-env";
+import { readServerNotifyPrefs } from "@/lib/notify/prefs-store";
 import { runExpiryNotify } from "@/lib/notify/run-expiry-notify";
 
 export const dynamic = "force-dynamic";
-
-function parseWindowDays(request: Request): number {
-  const raw = new URL(request.url).searchParams.get("windowDays");
-  const n = raw ? Number(raw) : Number(process.env.NOTIFY_WINDOW_DAYS ?? 30);
-  if (!Number.isFinite(n)) return 30;
-  return Math.min(365, Math.max(1, Math.floor(n)));
-}
 
 async function handle(request: Request) {
   if (!readCronSecret()) {
@@ -36,16 +25,24 @@ async function handle(request: Request) {
     );
   }
 
-  const email = readDefaultNotifyEmail();
-  const telegramChatId = readDefaultTelegramChatId();
-  const channelEmail = Boolean(email);
-  const channelTelegram = Boolean(telegramChatId);
+  const prefs = await readServerNotifyPrefs();
+  if (!prefs.notifyEnabled) {
+    return NextResponse.json({
+      ok: true,
+      skipped: true,
+      message: "服务端通知已关闭（设置页 notifyEnabled=false）",
+      prefs: {
+        notifyEnabled: false,
+        notifyDays: prefs.notifyDays,
+      },
+    });
+  }
 
-  if (!channelEmail && !channelTelegram) {
+  if (!prefs.channelEmail && !prefs.channelTelegram) {
     return NextResponse.json(
       {
         message:
-          "Set NOTIFY_EMAIL and/or TELEGRAM_CHAT_ID for cron delivery targets",
+          "未启用 Email/Telegram 渠道。请在设置 → 通知与续费 中配置并保存。",
       },
       { status: 400 },
     );
@@ -55,14 +52,20 @@ async function handle(request: Request) {
     new URL(request.url).searchParams.get("dryRun") === "1" ||
     new URL(request.url).searchParams.get("dryRun") === "true";
 
+  // Optional query override for one-off scans only
+  const windowParam = new URL(request.url).searchParams.get("windowDays");
+  const windowDays = windowParam
+    ? Math.min(365, Math.max(1, Number(windowParam) || prefs.notifyDays))
+    : prefs.notifyDays;
+
   try {
     const result = await runExpiryNotify({
-      windowDays: parseWindowDays(request),
-      includeExpired: true,
-      email,
-      telegramChatId,
-      channelEmail,
-      channelTelegram,
+      windowDays,
+      includeExpired: prefs.notifyExpired,
+      email: prefs.email,
+      telegramChatId: prefs.telegramChatId,
+      channelEmail: prefs.channelEmail,
+      channelTelegram: prefs.channelTelegram,
       dryRun,
       forceTestMessage: false,
       title: "BrutalDomain 到期提醒",
@@ -72,6 +75,15 @@ async function handle(request: Request) {
     return NextResponse.json(
       {
         ok: failed.length === 0,
+        source: "server-prefs",
+        prefs: {
+          notifyDays: windowDays,
+          email: prefs.email,
+          telegramChatId: prefs.telegramChatId,
+          channelEmail: prefs.channelEmail,
+          channelTelegram: prefs.channelTelegram,
+          updatedAt: prefs.updatedAt,
+        },
         ...result,
       },
       { status: failed.length === 0 ? 200 : 502 },

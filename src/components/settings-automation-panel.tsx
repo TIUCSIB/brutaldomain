@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Info, Save } from "lucide-react";
 
 import { SettingsNotifySection } from "@/components/settings-notify-section";
@@ -8,58 +8,123 @@ import { SettingsNotifyTestPanel } from "@/components/settings-notify-test-panel
 import { SettingsRenewSection } from "@/components/settings-renew-section";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
+import type { AutomationPrefs } from "@/features/settings/automation-prefs";
 import {
-  type AutomationPrefs,
-  validateAutomationPrefs,
-} from "@/features/settings/automation-prefs";
+  normalizeServerNotifyPrefs,
+  validateServerNotifyPrefs,
+  type ServerNotifyPrefs,
+} from "@/features/settings/server-notify-prefs";
 import { useAutomationPrefs } from "@/features/settings/use-automation-prefs";
+import { useServerNotifyPrefs } from "@/features/settings/use-server-notify-prefs";
 import {
   disableBrowserNotify,
   enableBrowserNotify,
 } from "@/features/domains/use-browser-notify";
 
-export function SettingsAutomationPanel() {
-  const { prefs, setPrefs } = useAutomationPrefs();
-  const [draft, setDraft] = useState<AutomationPrefs | null>(null);
-  const [saving, setSaving] = useState(false);
-  const view = draft ?? prefs;
+function toLocalNotifyDays(
+  days: number,
+): AutomationPrefs["notifyDays"] {
+  if (days <= 1) return 1;
+  if (days <= 3) return 3;
+  if (days <= 7) return 7;
+  if (days <= 14) return 14;
+  if (days <= 30) return 30;
+  if (days <= 60) return 60;
+  return 90;
+}
 
-  function patch(partial: Partial<AutomationPrefs>) {
-    setDraft((current) => ({ ...(current ?? prefs), ...partial }));
+export function SettingsAutomationPanel() {
+  const { prefs: localPrefs, setPrefs: setLocalPrefs } = useAutomationPrefs();
+  const {
+    prefs: serverPrefs,
+    secrets,
+    loading: serverLoading,
+    loaded: serverLoaded,
+    error: serverError,
+    save: saveServer,
+    refresh,
+  } = useServerNotifyPrefs();
+
+  const [localDraft, setLocalDraft] = useState<Partial<AutomationPrefs>>({});
+  const [serverDraft, setServerDraft] = useState<Partial<ServerNotifyPrefs>>(
+    {},
+  );
+  const [saving, setSaving] = useState(false);
+  const bootstrapped = useRef(false);
+
+  useEffect(() => {
+    if (bootstrapped.current) return;
+    bootstrapped.current = true;
+    void refresh();
+  }, [refresh]);
+
+  const localView: AutomationPrefs = { ...localPrefs, ...localDraft };
+  const serverView = normalizeServerNotifyPrefs({
+    ...serverPrefs,
+    ...serverDraft,
+  });
+
+  function patchLocal(partial: Partial<AutomationPrefs>) {
+    setLocalDraft((current) => ({ ...current, ...partial }));
+  }
+
+  function patchServer(partial: Partial<ServerNotifyPrefs>) {
+    setServerDraft((current) => ({ ...current, ...partial }));
   }
 
   async function handleSave() {
-    const next = { ...view };
-    const errors = validateAutomationPrefs(next);
-    if (errors.length > 0) {
-      toast.error("无法保存", { description: errors[0] });
+    const nextLocal: AutomationPrefs = { ...localView };
+    const nextServer = normalizeServerNotifyPrefs(serverView);
+
+    const serverErrors = validateServerNotifyPrefs(nextServer);
+    if (serverErrors.length > 0) {
+      toast.error("无法保存服务端通知配置", {
+        description: serverErrors[0],
+      });
       return;
     }
 
     setSaving(true);
     try {
-      if (next.notifyEnabled && next.channelBrowser) {
+      if (nextLocal.channelBrowser) {
         const permission = await enableBrowserNotify();
-        if (permission === "denied") {
-          toast.error("浏览器通知权限被拒绝", {
-            description: "已关闭浏览器渠道，其他设置仍会保存",
-          });
-          next.channelBrowser = false;
-        } else if (permission === "unsupported") {
-          toast.error("当前环境不支持浏览器通知");
-          next.channelBrowser = false;
+        if (permission === "denied" || permission === "unsupported") {
+          toast.error(
+            permission === "denied"
+              ? "浏览器通知权限被拒绝"
+              : "当前环境不支持浏览器通知",
+          );
+          nextLocal.channelBrowser = false;
         }
       } else {
         disableBrowserNotify();
       }
 
-      setPrefs(next);
-      setDraft(null);
-      toast.success("通知与续费偏好已保存", {
-        description:
-          next.channelEmail || next.channelTelegram
-            ? "邮件/TG 渠道配置已记录；实际推送需服务端接入后生效"
-            : "站内与浏览器偏好已生效",
+      // Align in-app window with server window
+      nextLocal.notifyDays = toLocalNotifyDays(nextServer.notifyDays);
+      nextLocal.notifyEnabled = true;
+      nextLocal.notifyExpired = nextServer.notifyExpired;
+      // Remote targets live on server only
+      nextLocal.channelEmail = false;
+      nextLocal.channelTelegram = false;
+      nextLocal.email = "";
+      nextLocal.telegramChatId = "";
+      nextLocal.telegramHint = "";
+
+      setLocalPrefs(nextLocal);
+      setLocalDraft({});
+
+      const saved = await saveServer(nextServer);
+      setServerDraft({});
+
+      toast.success("已保存", {
+        description: saved.persistedToDisk
+          ? "服务端通知配置已落盘；本机渠道已更新"
+          : saved.warning || "服务端配置已写入（可能仅内存）",
+      });
+    } catch (error) {
+      toast.error("保存失败", {
+        description: error instanceof Error ? error.message : "未知错误",
       });
     } finally {
       setSaving(false);
@@ -71,31 +136,56 @@ export function SettingsAutomationPanel() {
       <section className="border-2 border-border bg-[#fff7d6] p-3 shadow-shadow">
         <p className="flex items-start gap-2 text-xs font-bold leading-5 text-foreground/80">
           <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-          偏好保存在本机浏览器。站内/浏览器通知立即生效。邮件与 Telegram
-          通过服务端发送（可下方测试）；定时扫描用 CRON_SECRET 调
-          /api/cron/expiry-notify。自动续费仍为策略偏好，不会自动扣费执行。
+          <span>
+            <strong>服务端配置</strong>
+            （天数、邮箱、Chat ID、远程渠道）保存后供 cron/测试使用。
+            <strong> 密钥</strong>
+            （Resend / Bot Token / Cron）只在环境变量。
+            <strong> 本机渠道</strong>
+            与自动续费策略仅存当前浏览器。
+            {serverError ? (
+              <>
+                <br />
+                加载服务端配置失败：{serverError}{" "}
+                <button
+                  type="button"
+                  className="underline"
+                  onClick={() => void refresh()}
+                >
+                  重试
+                </button>
+              </>
+            ) : null}
+          </span>
         </p>
       </section>
 
-      <SettingsNotifySection draft={view} onPatch={patch} />
-      <SettingsNotifyTestPanel draft={view} />
-      <SettingsRenewSection draft={view} onPatch={patch} />
+      <SettingsNotifySection
+        serverDraft={serverView}
+        onServerPatch={patchServer}
+        localDraft={localView}
+        onLocalPatch={patchLocal}
+        serverLoading={serverLoading && !serverLoaded}
+      />
+      <SettingsNotifyTestPanel draft={serverView} secrets={secrets} />
+      <SettingsRenewSection draft={localView} onPatch={patchLocal} />
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[11px] font-bold text-foreground/60">
-          当前草稿：通知{" "}
-          {view.notifyEnabled ? `${view.notifyDays} 天` : "关"}
+          服务端通知{" "}
+          {serverView.notifyEnabled ? `${serverView.notifyDays} 天` : "关"}
           {" · "}
-          自动续费 {view.autoRenewEnabled ? `${view.autoRenewDays} 天` : "关"}
+          自动续费{" "}
+          {localView.autoRenewEnabled ? `${localView.autoRenewDays} 天` : "关"}
         </p>
         <Button
           type="button"
           size="sm"
-          disabled={saving}
+          disabled={saving || (serverLoading && !serverLoaded)}
           onClick={() => void handleSave()}
         >
           <Save className="size-3.5" />
-          {saving ? "保存中…" : "保存设置"}
+          {saving ? "保存中…" : "保存全部"}
         </Button>
       </div>
     </div>

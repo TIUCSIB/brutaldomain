@@ -223,28 +223,36 @@ http://localhost:3000
 
 ### Expiry notify (Email / Telegram)
 
-Optional server-side delivery. Secrets stay on the server only.
+**Settings UI is the source of truth** for delivery targets and policy:
+
+- notify on/off, window days, include expired
+- Email / Telegram channel toggles
+- recipient email + Telegram chat id
+
+These are saved via `PUT /api/settings/notify/prefs` (server store under `.data/notify-prefs.json` when the filesystem is writable).
+
+**Environment variables are only for secrets / bootstrap:**
 
 | Variable | Purpose |
 | --- | --- |
 | `RESEND_API_KEY` | Send email via [Resend](https://resend.com) |
 | `NOTIFY_FROM_EMAIL` | From header (default Resend onboarding sender) |
-| `NOTIFY_EMAIL` | Default cron email target |
 | `TELEGRAM_BOT_TOKEN` | Bot token from `@BotFather` |
-| `TELEGRAM_CHAT_ID` | Default cron Telegram chat id |
 | `CRON_SECRET` | Protects `/api/cron/expiry-notify` |
-| `NOTIFY_WINDOW_DAYS` | Optional cron window (default 30) |
+| `NOTIFY_EMAIL` | Optional bootstrap email before first UI save |
+| `TELEGRAM_CHAT_ID` | Optional bootstrap chat id before first UI save |
+| `NOTIFY_WINDOW_DAYS` | Optional bootstrap window before first UI save |
 
-Manual test from **设置 → 通知与续费 → 渠道测试** (uses form email/chat id).
+Manual test: **设置 → 通知与续费 → 渠道测试** (uses current form draft).
 
-Cron example:
+Cron uses **saved server prefs**, not browser localStorage:
 
 ```bash
 curl -H "x-cron-secret: $CRON_SECRET" \
   "https://your-app.vercel.app/api/cron/expiry-notify"
 ```
 
-Vercel Cron is declared in `vercel.json` (daily). Cron uses `NOTIFY_EMAIL` / `TELEGRAM_CHAT_ID`, not browser localStorage prefs.
+Vercel Cron is declared in `vercel.json` (daily). On serverless, prefer a durable store if the instance filesystem is ephemeral; until then save-from-UI still drives the same process memory + best-effort disk write.
 
 ## Available Pages
 

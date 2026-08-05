@@ -1,27 +1,23 @@
 import { NextResponse } from "next/server";
 
-import { isValidEmail } from "@/features/settings/automation-prefs";
+import {
+  isValidNotifyEmail,
+  normalizeServerNotifyPrefs,
+  type ServerNotifyPrefs,
+} from "@/features/settings/server-notify-prefs";
 import { DNSHE_NOT_CONFIGURED_MESSAGE } from "@/lib/api/dnshe-config-error";
 import { isDnsheConfigured } from "@/lib/env/server-env";
+import { readServerNotifyPrefs } from "@/lib/notify/prefs-store";
 import { runExpiryNotify } from "@/lib/notify/run-expiry-notify";
 
 export const dynamic = "force-dynamic";
 
 interface TestBody {
-  windowDays?: number;
-  includeExpired?: boolean;
-  email?: string;
-  telegramChatId?: string;
-  channelEmail?: boolean;
-  channelTelegram?: boolean;
+  /** When true, use current form draft instead of saved server prefs. */
+  useDraft?: boolean;
+  draft?: Partial<ServerNotifyPrefs>;
   dryRun?: boolean;
   forceTestMessage?: boolean;
-}
-
-function clampWindowDays(value: unknown): number {
-  const n = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(n)) return 30;
-  return Math.min(365, Math.max(1, Math.floor(n)));
 }
 
 export async function POST(request: Request) {
@@ -39,43 +35,40 @@ export async function POST(request: Request) {
     body = {};
   }
 
-  const channelEmail = Boolean(body.channelEmail);
-  const channelTelegram = Boolean(body.channelTelegram);
-  if (!channelEmail && !channelTelegram) {
+  const saved = await readServerNotifyPrefs();
+  const prefs = body.useDraft
+    ? normalizeServerNotifyPrefs({ ...saved, ...(body.draft ?? {}) })
+    : saved;
+
+  if (!prefs.channelEmail && !prefs.channelTelegram) {
     return NextResponse.json(
-      { message: "请至少选择 Email 或 Telegram 渠道" },
+      { message: "请至少启用 Email 或 Telegram 渠道（设置页保存或草稿）" },
       { status: 400 },
     );
   }
 
-  if (channelEmail) {
-    const email = body.email?.trim() ?? "";
-    if (!isValidEmail(email)) {
-      return NextResponse.json(
-        { message: "测试邮件需要有效邮箱地址" },
-        { status: 400 },
-      );
-    }
+  if (prefs.channelEmail && !isValidNotifyEmail(prefs.email)) {
+    return NextResponse.json(
+      { message: "测试邮件需要有效邮箱地址" },
+      { status: 400 },
+    );
   }
 
-  if (channelTelegram) {
-    const chatId = body.telegramChatId?.trim() ?? "";
-    if (!chatId) {
-      return NextResponse.json(
-        { message: "测试 Telegram 需要 Chat ID" },
-        { status: 400 },
-      );
-    }
+  if (prefs.channelTelegram && !prefs.telegramChatId.trim()) {
+    return NextResponse.json(
+      { message: "测试 Telegram 需要 Chat ID" },
+      { status: 400 },
+    );
   }
 
   try {
     const result = await runExpiryNotify({
-      windowDays: clampWindowDays(body.windowDays),
-      includeExpired: body.includeExpired ?? true,
-      email: body.email,
-      telegramChatId: body.telegramChatId,
-      channelEmail,
-      channelTelegram,
+      windowDays: prefs.notifyDays,
+      includeExpired: prefs.notifyExpired,
+      email: prefs.email,
+      telegramChatId: prefs.telegramChatId,
+      channelEmail: prefs.channelEmail,
+      channelTelegram: prefs.channelTelegram,
       dryRun: Boolean(body.dryRun),
       forceTestMessage: body.forceTestMessage !== false,
       title: "BrutalDomain 通知测试",
@@ -85,6 +78,14 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         ok: failed.length === 0,
+        source: body.useDraft ? "draft" : "server",
+        prefs: {
+          notifyDays: prefs.notifyDays,
+          email: prefs.email,
+          telegramChatId: prefs.telegramChatId,
+          channelEmail: prefs.channelEmail,
+          channelTelegram: prefs.channelTelegram,
+        },
         ...result,
       },
       { status: failed.length === 0 ? 200 : 502 },

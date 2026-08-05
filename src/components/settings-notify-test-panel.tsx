@@ -5,24 +5,16 @@ import { FlaskConical, LoaderCircle, Send } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
-import type { AutomationPrefs } from "@/features/settings/automation-prefs";
+import type { ServerNotifyPrefs } from "@/features/settings/server-notify-prefs";
+import type { NotifySecretsStatus } from "@/features/settings/use-server-notify-prefs";
 import { redirectIfUnauthorized } from "@/lib/api/request-error";
-
-interface NotifyStatus {
-  dnsheConfigured: boolean;
-  telegramConfigured: boolean;
-  emailConfigured: boolean;
-  cronSecretConfigured: boolean;
-  defaultEmail: string | null;
-  defaultTelegramChatId: string | null;
-  fromEmail: string | null;
-}
 
 interface TestResponse {
   ok?: boolean;
   message?: string;
   scanned?: number;
   alertCount?: number;
+  source?: string;
   channels?: Array<{
     channel: string;
     ok: boolean;
@@ -33,34 +25,13 @@ interface TestResponse {
 
 export function SettingsNotifyTestPanel({
   draft,
+  secrets,
 }: {
-  draft: AutomationPrefs;
+  draft: ServerNotifyPrefs;
+  secrets: NotifySecretsStatus | null;
 }) {
-  const [status, setStatus] = useState<NotifyStatus | null>(null);
-  const [loadingStatus, setLoadingStatus] = useState(false);
   const [testing, setTesting] = useState<"live" | "dry" | null>(null);
   const [lastResult, setLastResult] = useState<TestResponse | null>(null);
-
-  async function refreshStatus() {
-    setLoadingStatus(true);
-    try {
-      const response = await fetch("/api/settings/notify/status", {
-        cache: "no-store",
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      setStatus((await response.json()) as NotifyStatus);
-    } catch (error) {
-      if (redirectIfUnauthorized(error)) return;
-      setStatus(null);
-      toast.error("无法读取通知配置状态", {
-        description: error instanceof Error ? error.message : "未知错误",
-      });
-    } finally {
-      setLoadingStatus(false);
-    }
-  }
 
   async function runTest(dryRun: boolean) {
     if (!draft.channelEmail && !draft.channelTelegram) {
@@ -74,12 +45,16 @@ export function SettingsNotifyTestPanel({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          windowDays: draft.notifyDays,
-          includeExpired: draft.notifyExpired,
-          email: draft.email,
-          telegramChatId: draft.telegramChatId,
-          channelEmail: draft.channelEmail,
-          channelTelegram: draft.channelTelegram,
+          useDraft: true,
+          draft: {
+            notifyEnabled: draft.notifyEnabled,
+            notifyDays: draft.notifyDays,
+            notifyExpired: draft.notifyExpired,
+            channelEmail: draft.channelEmail,
+            channelTelegram: draft.channelTelegram,
+            email: draft.email,
+            telegramChatId: draft.telegramChatId,
+          },
           dryRun,
           forceTestMessage: true,
         }),
@@ -103,7 +78,7 @@ export function SettingsNotifyTestPanel({
         return;
       }
       toast.success(dryRun ? "预检通过（未真实发送）" : "测试通知已发送", {
-        description: `扫描 ${payload.scanned ?? 0} 个域名 · 窗口内 ${payload.alertCount ?? 0} 个`,
+        description: `扫描 ${payload.scanned ?? 0} · 窗口内 ${payload.alertCount ?? 0} · 使用当前表单草稿`,
       });
     } catch (error) {
       if (redirectIfUnauthorized(error)) return;
@@ -117,54 +92,26 @@ export function SettingsNotifyTestPanel({
 
   return (
     <section className="border-2 border-border bg-secondary-background p-3.5 shadow-shadow">
-      <header className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b-2 border-border pb-2">
-        <h2 className="flex items-center gap-2 text-base font-black">
-          <FlaskConical className="size-4" strokeWidth={2.5} />
-          渠道测试
-        </h2>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="h-8"
-          disabled={loadingStatus}
-          onClick={() => void refreshStatus()}
-        >
-          {loadingStatus ? (
-            <LoaderCircle className="size-3.5 animate-spin" />
-          ) : null}
-          {status ? "刷新状态" : "检查服务端配置"}
-        </Button>
+      <header className="mb-3 flex items-center gap-2 border-b-2 border-border pb-2">
+        <FlaskConical className="size-4" strokeWidth={2.5} />
+        <h2 className="text-base font-black">渠道测试</h2>
       </header>
 
       <div className="grid gap-2 text-xs font-bold sm:grid-cols-2">
+        <StatusPill label="Resend Key" ok={secrets?.emailConfigured} />
+        <StatusPill label="Telegram Bot" ok={secrets?.telegramConfigured} />
+        <StatusPill label="Cron Secret" ok={secrets?.cronSecretConfigured} />
         <StatusPill
-          label="DNSHE"
-          ok={status?.dnsheConfigured}
-          loaded={status !== null}
-        />
-        <StatusPill
-          label="Resend Email"
-          ok={status?.emailConfigured}
-          loaded={status !== null}
-        />
-        <StatusPill
-          label="Telegram Bot"
-          ok={status?.telegramConfigured}
-          loaded={status !== null}
-        />
-        <StatusPill
-          label="Cron Secret"
-          ok={status?.cronSecretConfigured}
-          loaded={status !== null}
+          label="表单远程渠道"
+          ok={draft.channelEmail || draft.channelTelegram}
         />
       </div>
 
       <p className="mt-3 text-[11px] font-bold leading-5 text-foreground/65">
-        测试使用上方草稿中的邮箱 / Chat ID（无需先保存）。真实发送需配置{" "}
-        <code>RESEND_API_KEY</code> / <code>TELEGRAM_BOT_TOKEN</code>
-        。定时扫描：
-        <code>/api/cron/expiry-notify</code> + <code>CRON_SECRET</code>。
+        测试用<strong>当前表单草稿</strong>（不必先保存）。
+        定时任务使用<strong>已保存的服务端配置</strong>。
+        密钥：<code>RESEND_API_KEY</code> / <code>TELEGRAM_BOT_TOKEN</code> /
+        <code>CRON_SECRET</code>。
       </p>
 
       <div className="mt-3 flex flex-wrap gap-2">
@@ -202,6 +149,7 @@ export function SettingsNotifyTestPanel({
           <p>
             扫描 {lastResult.scanned ?? "—"} · 窗口内{" "}
             {lastResult.alertCount ?? "—"}
+            {lastResult.source ? ` · ${lastResult.source}` : ""}
           </p>
           <ul className="mt-1 space-y-0.5">
             {(lastResult.channels ?? []).map((item) => (
@@ -220,26 +168,21 @@ export function SettingsNotifyTestPanel({
   );
 }
 
-function StatusPill({
-  label,
-  ok,
-  loaded,
-}: {
-  label: string;
-  ok?: boolean;
-  loaded: boolean;
-}) {
-  const tone = !loaded
-    ? "bg-muted text-foreground/70"
-    : ok
-      ? "bg-emerald-200 text-emerald-950"
-      : "bg-[#ffd0d8] text-red-900";
+function StatusPill({ label, ok }: { label: string; ok?: boolean }) {
+  const tone =
+    ok === undefined
+      ? "bg-muted text-foreground/70"
+      : ok
+        ? "bg-emerald-200 text-emerald-950"
+        : "bg-[#ffd0d8] text-red-900";
   return (
     <span
       className={`inline-flex items-center justify-between border-2 border-border px-2 py-1.5 shadow-shadow ${tone}`}
     >
       <span>{label}</span>
-      <span>{!loaded ? "未检查" : ok ? "已配置" : "未配置"}</span>
+      <span>
+        {ok === undefined ? "…" : ok ? "就绪" : "未就绪"}
+      </span>
     </span>
   );
 }
