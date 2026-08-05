@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { KeyRound, RefreshCw, Wallet } from "lucide-react";
+import { BookOpen, KeyRound, RefreshCw, Wallet } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { ConfigErrorBanner } from "@/components/config-error-banner";
+import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { PageHeader } from "@/components/page-header";
 import {
   emptyKeyForm,
   SettingsApiPanel,
 } from "@/components/settings-api-panel";
+import { SettingsHelpPanel } from "@/components/settings-help-panel";
 import { SettingsQuotaPanel } from "@/components/settings-quota-panel";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,6 +19,11 @@ import { toast } from "@/components/ui/sonner";
 import { useSettingsStore } from "@/features/settings/settings-store";
 import { redirectIfUnauthorized } from "@/lib/api/request-error";
 import { formatSyncedAt } from "@/lib/format-relative";
+
+type PendingKeyAction =
+  | { type: "delete"; keyId: number; name: string }
+  | { type: "regenerate"; keyId: number; name: string }
+  | null;
 
 export function SettingsConsole() {
   const {
@@ -36,6 +43,7 @@ export function SettingsConsole() {
   const [busyKeyId, setBusyKeyId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [pendingAction, setPendingAction] = useState<PendingKeyAction>(null);
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -78,31 +86,26 @@ export function SettingsConsole() {
     }
   }
 
-  async function handleDeleteKey(keyId: number) {
-    setBusyKeyId(keyId);
+  async function confirmPendingAction() {
+    if (!pendingAction) return;
+    setBusyKeyId(pendingAction.keyId);
     try {
-      await deleteApiKey(keyId);
-      toast.success("API Key 已删除");
+      if (pendingAction.type === "delete") {
+        await deleteApiKey(pendingAction.keyId);
+        toast.success("API Key 已删除");
+      } else {
+        await regenerateApiKey(pendingAction.keyId);
+        toast.success("Secret 已重置");
+      }
+      setPendingAction(null);
     } catch (caught) {
       if (redirectIfUnauthorized(caught)) return;
-      toast.error("删除密钥失败", {
-        description: caught instanceof Error ? caught.message : "未知错误",
-      });
-    } finally {
-      setBusyKeyId(null);
-    }
-  }
-
-  async function handleRegenerateKey(keyId: number) {
-    setBusyKeyId(keyId);
-    try {
-      await regenerateApiKey(keyId);
-      toast.success("Secret 已重置");
-    } catch (caught) {
-      if (redirectIfUnauthorized(caught)) return;
-      toast.error("重置密钥失败", {
-        description: caught instanceof Error ? caught.message : "未知错误",
-      });
+      toast.error(
+        pendingAction.type === "delete" ? "删除密钥失败" : "重置密钥失败",
+        {
+          description: caught instanceof Error ? caught.message : "未知错误",
+        },
+      );
     } finally {
       setBusyKeyId(null);
     }
@@ -144,6 +147,10 @@ export function SettingsConsole() {
               <Wallet className="size-3.5" />
               配额
             </TabsTrigger>
+            <TabsTrigger value="help">
+              <BookOpen className="size-3.5" />
+              部署帮助
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="api">
@@ -157,8 +164,22 @@ export function SettingsConsole() {
               keyForm={keyForm}
               onKeyFormChange={setKeyForm}
               onCreate={handleCreateKey}
-              onRegenerate={(keyId) => void handleRegenerateKey(keyId)}
-              onDelete={(keyId) => void handleDeleteKey(keyId)}
+              onRegenerate={(keyId) => {
+                const item = keys.find((key) => key.id === keyId);
+                setPendingAction({
+                  type: "regenerate",
+                  keyId,
+                  name: item?.key_name ?? `#${keyId}`,
+                });
+              }}
+              onDelete={(keyId) => {
+                const item = keys.find((key) => key.id === keyId);
+                setPendingAction({
+                  type: "delete",
+                  keyId,
+                  name: item?.key_name ?? `#${keyId}`,
+                });
+              }}
             />
           </TabsContent>
 
@@ -169,7 +190,50 @@ export function SettingsConsole() {
               initialized={initialized}
             />
           </TabsContent>
+
+          <TabsContent value="help">
+            <SettingsHelpPanel />
+          </TabsContent>
         </Tabs>
+
+        <ConfirmActionDialog
+          open={pendingAction !== null}
+          onOpenChange={(open) => {
+            if (!open && busyKeyId === null) setPendingAction(null);
+          }}
+          title={
+            pendingAction?.type === "regenerate"
+              ? "确认重置 Secret？"
+              : "确认删除 API Key？"
+          }
+          description={
+            pendingAction?.type === "regenerate" ? (
+              <>
+                重置后旧 Secret 立即失效。密钥{" "}
+                <strong className="text-foreground">
+                  {pendingAction.name}
+                </strong>{" "}
+                的新 Secret 仅显示一次。
+              </>
+            ) : (
+              <>
+                将永久删除密钥{" "}
+                <strong className="text-foreground">
+                  {pendingAction?.name}
+                </strong>
+                ，使用该 Key 的集成会立刻失败。
+              </>
+            )
+          }
+          confirmLabel={
+            pendingAction?.type === "regenerate" ? "确认重置" : "确认删除"
+          }
+          pending={busyKeyId !== null}
+          pendingLabel={
+            pendingAction?.type === "regenerate" ? "重置中…" : "删除中…"
+          }
+          onConfirm={() => void confirmPendingAction()}
+        />
       </div>
     </AppShell>
   );

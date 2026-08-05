@@ -1,4 +1,4 @@
-import type { DnsRecordType } from "@/features/domains/types";
+import type { CreateDnsRecordInput, DnsRecordType } from "@/features/domains/types";
 
 export interface DnsTemplateForm {
   type: DnsRecordType;
@@ -14,6 +14,13 @@ export interface DnsTemplate {
   label: string;
   description: string;
   form: Partial<DnsTemplateForm> & { type: DnsRecordType; name: string };
+}
+
+export interface DnsBatchTemplate {
+  id: string;
+  label: string;
+  description: string;
+  build: (zoneDomain: string) => CreateDnsRecordInput[];
 }
 
 export const DNS_TEMPLATES: DnsTemplate[] = [
@@ -68,7 +75,7 @@ export const DNS_TEMPLATES: DnsTemplate[] = [
   {
     id: "mx-google",
     label: "Google MX",
-    description: "邮件交换",
+    description: "单条主 MX",
     form: {
       type: "MX",
       name: "@",
@@ -89,6 +96,77 @@ export const DNS_TEMPLATES: DnsTemplate[] = [
       ttl: "3600",
       proxied: false,
     },
+  },
+];
+
+export const DNS_BATCH_TEMPLATES: DnsBatchTemplate[] = [
+  {
+    id: "google-workspace-mx",
+    label: "Google MX 全套",
+    description: "5 条 Google Workspace MX",
+    build: () => [
+      {
+        type: "MX",
+        name: "@",
+        content: "aspmx.l.google.com",
+        ttl: 3600,
+        proxied: false,
+        priority: 1,
+      },
+      {
+        type: "MX",
+        name: "@",
+        content: "alt1.aspmx.l.google.com",
+        ttl: 3600,
+        proxied: false,
+        priority: 5,
+      },
+      {
+        type: "MX",
+        name: "@",
+        content: "alt2.aspmx.l.google.com",
+        ttl: 3600,
+        proxied: false,
+        priority: 5,
+      },
+      {
+        type: "MX",
+        name: "@",
+        content: "alt3.aspmx.l.google.com",
+        ttl: 3600,
+        proxied: false,
+        priority: 10,
+      },
+      {
+        type: "MX",
+        name: "@",
+        content: "alt4.aspmx.l.google.com",
+        ttl: 3600,
+        proxied: false,
+        priority: 10,
+      },
+    ],
+  },
+  {
+    id: "mail-basics",
+    label: "邮件基础",
+    description: "SPF + DMARC",
+    build: (zoneDomain) => [
+      {
+        type: "TXT",
+        name: "@",
+        content: "v=spf1 include:_spf.google.com ~all",
+        ttl: 3600,
+        proxied: false,
+      },
+      {
+        type: "TXT",
+        name: "_dmarc",
+        content: `v=DMARC1; p=none; rua=mailto:dmarc@${zoneDomain}`,
+        ttl: 3600,
+        proxied: false,
+      },
+    ],
   },
 ];
 

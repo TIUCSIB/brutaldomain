@@ -1,14 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { buildDnsRecordFqdn } from "@/features/domains/dns-record-name";
 import type { DnsRecord } from "@/features/domains/types";
 
@@ -36,34 +28,25 @@ export function RecordDeleteDialog({
     : "";
 
   return (
-    <Dialog open={record !== null} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-none border-slate-950 bg-white text-slate-950 shadow-[7px_7px_0_0_#0f172a]">
-        <DialogHeader>
-          <DialogTitle>删除这条 DNS 记录？</DialogTitle>
-          <DialogDescription>
-            此操作不可撤销。
-            {label ? ` 将删除 ${label}。` : ""}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            className="rounded-none border-slate-950 bg-white shadow-[2px_2px_0_0_#0f172a]"
-          >
-            取消
-          </Button>
-          <Button
-            type="button"
-            disabled={deleting}
-            onClick={onConfirm}
-            className="rounded-none border-slate-950 bg-[#ff5c7a] text-white shadow-[2px_2px_0_0_#0f172a] hover:bg-red-600"
-          >
-            {deleting ? "删除中…" : "删除"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ConfirmActionDialog
+      open={record !== null}
+      onOpenChange={onOpenChange}
+      title="删除这条 DNS 记录？"
+      description={
+        <>
+          此操作不可撤销。
+          {label ? (
+            <>
+              {" "}
+              将删除 <strong className="text-foreground">{label}</strong>。
+            </>
+          ) : null}
+        </>
+      }
+      confirmLabel="删除"
+      pending={deleting}
+      pendingLabel="删除中…"
+      onConfirm={onConfirm}
+    />
   );
 }

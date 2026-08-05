@@ -2,19 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Copy, Download, RefreshCw } from "lucide-react";
-
 import { AppShell } from "@/components/app-shell";
 import { ConfigErrorBanner } from "@/components/config-error-banner";
 import { DomainFilters } from "@/components/domain-filters";
-import { DomainFormDialog } from "@/components/domain-form-dialog";
 import { DomainListEmpty } from "@/components/domain-list-empty";
 import { DomainListPagination } from "@/components/domain-list-pagination";
 import { DomainMobileList } from "@/components/domain-mobile-list";
+import { DomainsPageActions } from "@/components/domains-page-actions";
 import { DomainTable } from "@/components/domain-table";
 import { PageHeader } from "@/components/page-header";
-import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
+import { buildDomainFilterPresetChips } from "@/features/domains/domain-filter-presets";
 import {
   applyDomainListParamPatch,
   readDomainListParams,
@@ -100,6 +98,15 @@ export function DomainsContent() {
     sort !== "expiry-asc" ||
     Boolean(search.trim());
 
+  const filterPresets = useMemo(
+    () =>
+      buildDomainFilterPresetChips(
+        { expiryRisk, status, sort, search },
+        setParams,
+      ),
+    [expiryRisk, search, setParams, sort, status],
+  );
+
   const {
     selectedIds,
     toggleSelect,
@@ -159,39 +166,15 @@ export function DomainsContent() {
           title="域名管理"
           description="筛选并管理全部 DNSHE 域名，进入详情可编辑解析记录。"
           actions={
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => void handleCopySelected()}
-                disabled={selectedIds.size === 0}
-              >
-                <Copy />
-                复制{selectedIds.size > 0 ? ` ${selectedIds.size}` : ""}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleExport}
-                disabled={filteredDomains.length === 0}
-              >
-                <Download />
-                导出
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleRefresh}
-                disabled={refreshing || loading}
-              >
-                <RefreshCw className={refreshing ? "animate-spin" : ""} />
-                同步
-              </Button>
-              <DomainFormDialog />
-            </>
+            <DomainsPageActions
+              selectedCount={selectedIds.size}
+              canExport={filteredDomains.length > 0}
+              refreshing={refreshing}
+              loading={loading}
+              onCopy={() => void handleCopySelected()}
+              onExport={handleExport}
+              onRefresh={() => void handleRefresh()}
+            />
           }
         />
 
@@ -205,6 +188,7 @@ export function DomainsContent() {
           sort={sort}
           providers={providers}
           active={filtersActive}
+          presets={filterPresets}
           onSearchChange={(value) => setParams({ q: value || null })}
           onStatusChange={(value) =>
             setParams({ status: value === "all" ? null : value })

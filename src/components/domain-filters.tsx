@@ -19,6 +19,13 @@ import type {
   StatusFilter,
 } from "@/features/domains/utils";
 
+export interface DomainFilterChip {
+  id: string;
+  label: string;
+  active: boolean;
+  onSelect: () => void;
+}
+
 export interface DomainFiltersProps {
   search: string;
   status: StatusFilter;
@@ -27,6 +34,7 @@ export interface DomainFiltersProps {
   sort: DomainSort;
   providers: number[];
   active: boolean;
+  presets?: DomainFilterChip[];
   onSearchChange: (value: string) => void;
   onStatusChange: (value: StatusFilter) => void;
   onProviderChange: (value: ProviderFilter) => void;
@@ -48,6 +56,7 @@ export function DomainFilters({
   sort,
   providers,
   active,
+  presets = [],
   onSearchChange,
   onStatusChange,
   onProviderChange,
@@ -82,6 +91,27 @@ export function DomainFilters({
           <RotateCcw aria-hidden="true" /> 重置
         </Button>
       </div>
+
+      {presets.length > 0 ? (
+        <div
+          className="mb-2.5 flex flex-wrap gap-1.5"
+          aria-label="快捷筛选视图"
+        >
+          {presets.map((preset) => (
+            <Button
+              key={preset.id}
+              type="button"
+              size="sm"
+              variant={preset.active ? "default" : "outline"}
+              className="h-7 rounded-none px-2 text-[11px]"
+              aria-pressed={preset.active}
+              onClick={preset.onSelect}
+            >
+              {preset.label}
+            </Button>
+          ))}
+        </div>
+      ) : null}
 
       <div className="mb-2.5 max-w-sm" role="search">
         <Label htmlFor="domain-search" className="sr-only">
