@@ -2,6 +2,11 @@ import {
   AUTH_COOKIE_NAME,
   AUTH_SESSION_TTL_SECONDS,
 } from "@/lib/auth/constants";
+import {
+  isGitHubUserAllowed,
+  readAllowedGitHubUsers,
+  requireGitHubAllowlistInProduction,
+} from "@/lib/auth/allowed-users";
 
 export interface EdgeSessionPayload {
   username: string;
@@ -51,12 +56,13 @@ function safeEqual(left: string, right: string): boolean {
 export function readEdgeAuthSecret(): string | null {
   const clientId = process.env.GITHUB_CLIENT_ID?.trim();
   const clientSecret = process.env.GITHUB_CLIENT_SECRET?.trim();
-  const secret =
-    process.env.AUTH_SECRET?.trim() ||
-    process.env.DNSHE_API_SECRET?.trim() ||
-    "";
+  const secret = process.env.AUTH_SECRET?.trim() || "";
+  const allowedUsers = readAllowedGitHubUsers();
 
   if (!clientId || !clientSecret || !secret) return null;
+  if (requireGitHubAllowlistInProduction() && allowedUsers.length === 0) {
+    return null;
+  }
   return secret;
 }
 
@@ -80,6 +86,9 @@ export async function verifyEdgeSessionToken(
       typeof payload.exp !== "number" ||
       payload.exp < Math.floor(Date.now() / 1000)
     ) {
+      return null;
+    }
+    if (!isGitHubUserAllowed(payload.username, readAllowedGitHubUsers())) {
       return null;
     }
     return payload;

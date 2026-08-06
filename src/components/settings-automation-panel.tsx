@@ -1,195 +1,113 @@
-"use client";
+'use client'
 
-import { useEffect, useRef, useState } from "react";
-import { Info, Save } from "lucide-react";
+import { useEffect, useRef, useState } from 'react'
+import { Save } from 'lucide-react'
 
-import { SettingsNotifyCard } from "@/components/settings-notify-card";
-import { SettingsRenewSection } from "@/components/settings-renew-section";
-import { Button } from "@/components/ui/button";
-import { toast } from "@/components/ui/sonner";
-import type { AutomationPrefs } from "@/features/settings/automation-prefs";
-import {
-  normalizeServerNotifyPrefs,
-  validateServerNotifyPrefs,
-  type ServerNotifyPrefs,
-} from "@/features/settings/server-notify-prefs";
-import { useAutomationPrefs } from "@/features/settings/use-automation-prefs";
-import { useServerNotifyPrefs } from "@/features/settings/use-server-notify-prefs";
-import {
-  disableBrowserNotify,
-  enableBrowserNotify,
-} from "@/features/domains/use-browser-notify";
-
-function toLocalNotifyDays(days: number): AutomationPrefs["notifyDays"] {
-  if (days <= 1) return 1;
-  if (days <= 3) return 3;
-  if (days <= 7) return 7;
-  if (days <= 14) return 14;
-  if (days <= 30) return 30;
-  if (days <= 60) return 60;
-  return 90;
-}
+import { SettingsRenewSection } from '@/components/settings-renew-section'
+import { SettingsRenewEnableDialog } from '@/components/settings-renew-enable-dialog'
+import { Button } from '@/components/ui/button'
+import { toast } from '@/components/ui/sonner'
+import { normalizeServerRenewPrefs, validateServerRenewPrefs, type ServerRenewPrefs } from '@/features/settings/server-renew-prefs'
+import { useServerRenewPrefs } from '@/features/settings/use-server-renew-prefs'
 
 export function SettingsAutomationPanel() {
-  const { prefs: localPrefs, setPrefs: setLocalPrefs } = useAutomationPrefs();
-  const {
-    prefs: serverPrefs,
-    secrets,
-    storage,
-    loading: serverLoading,
-    loaded: serverLoaded,
-    error: serverError,
-    save: saveServer,
-    refresh,
-  } = useServerNotifyPrefs();
+  const { prefs: renewPrefs, status: renewStatus, storage: renewStorage, loading: renewLoading, loaded: renewLoaded, save: saveRenew, refresh: refreshRenew } = useServerRenewPrefs()
 
-  const [localDraft, setLocalDraft] = useState<Partial<AutomationPrefs>>({});
-  const [serverDraft, setServerDraft] = useState<Partial<ServerNotifyPrefs>>(
-    {},
-  );
-  const [saving, setSaving] = useState(false);
-  const bootstrapped = useRef(false);
+  const [renewDraft, setRenewDraft] = useState<Partial<ServerRenewPrefs>>({})
+  const [saving, setSaving] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [pendingSave, setPendingSave] = useState<(() => Promise<void>) | null>(null)
+  const bootstrapped = useRef(false)
 
   useEffect(() => {
-    if (bootstrapped.current) return;
-    bootstrapped.current = true;
-    void refresh();
-  }, [refresh]);
+    if (bootstrapped.current) return
+    bootstrapped.current = true
+    void refreshRenew()
+  }, [refreshRenew])
 
-  const localView: AutomationPrefs = { ...localPrefs, ...localDraft };
-  const serverView = normalizeServerNotifyPrefs({
-    ...serverPrefs,
-    ...serverDraft,
-  });
+  const renewView = normalizeServerRenewPrefs({
+    ...renewPrefs,
+    ...renewDraft,
+  })
 
-  function patchLocal(partial: Partial<AutomationPrefs>) {
-    setLocalDraft((current) => ({ ...current, ...partial }));
+  function patchRenew(partial: Partial<ServerRenewPrefs>) {
+    setRenewDraft((current) => ({ ...current, ...partial }))
   }
 
-  function patchServer(partial: Partial<ServerNotifyPrefs>) {
-    setServerDraft((current) => ({ ...current, ...partial }));
+  async function persistAll(withConsent: boolean) {
+    const nextRenew = normalizeServerRenewPrefs({
+      ...renewView,
+      autoRenewDays: 180,
+      consentAt:
+        renewView.autoRenewEnabled && withConsent ? (renewView.consentAt ?? new Date().toISOString())
+        : renewView.autoRenewEnabled ? renewView.consentAt
+        : null,
+    })
+
+    const renewErrors = validateServerRenewPrefs(nextRenew)
+    if (renewErrors.length > 0) {
+      toast.error('无法保存自动续费配置', {
+        description: renewErrors[0],
+      })
+      return
+    }
+
+    setSaving(true)
+    try {
+      const renewSaved = await saveRenew(nextRenew)
+      setRenewDraft({})
+
+      const whereRenew =
+        renewSaved.persistedToBlob ? 'Vercel Blob'
+        : renewSaved.persistedToDisk ? '本地 .data/'
+        : renewSaved.backend === 'memory' ? '仅内存'
+        : renewSaved.backend
+      toast.success('已保存', {
+        description: renewSaved.warning || `自动续费 → ${whereRenew}`,
+      })
+    } catch (error) {
+      toast.error('保存失败', {
+        description: error instanceof Error ? error.message : '未知错误',
+      })
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function handleSave() {
-    const nextLocal: AutomationPrefs = { ...localView };
-    const nextServer = normalizeServerNotifyPrefs(serverView);
-
-    const serverErrors = validateServerNotifyPrefs(nextServer);
-    if (serverErrors.length > 0) {
-      toast.error("无法保存服务端通知配置", {
-        description: serverErrors[0],
-      });
-      return;
+    if (renewView.autoRenewEnabled && !renewPrefs.consentAt && !renewView.consentAt) {
+      setPendingSave(() => async () => {
+        await persistAll(true)
+      })
+      setConfirmOpen(true)
+      return
     }
-
-    setSaving(true);
-    try {
-      if (nextLocal.channelBrowser) {
-        const permission = await enableBrowserNotify();
-        if (permission === "denied" || permission === "unsupported") {
-          toast.error(
-            permission === "denied"
-              ? "浏览器通知权限被拒绝"
-              : "当前环境不支持浏览器通知",
-          );
-          nextLocal.channelBrowser = false;
-        }
-      } else {
-        disableBrowserNotify();
-      }
-
-      nextLocal.notifyDays = toLocalNotifyDays(nextServer.notifyDays);
-      nextLocal.notifyEnabled = true;
-      nextLocal.notifyExpired = nextServer.notifyExpired;
-      nextLocal.channelEmail = false;
-      nextLocal.channelTelegram = false;
-      nextLocal.email = "";
-      nextLocal.telegramChatId = "";
-      nextLocal.telegramHint = "";
-
-      setLocalPrefs(nextLocal);
-      setLocalDraft({});
-
-      const saved = await saveServer(nextServer);
-      setServerDraft({});
-
-      const where = saved.persistedToBlob
-        ? "Vercel Blob"
-        : saved.persistedToDisk
-          ? "本地 .data/"
-          : saved.backend === "memory"
-            ? "仅内存"
-            : saved.backend;
-      toast.success("已保存", {
-        description: saved.warning
-          ? saved.warning
-          : `通知配置 → ${where}；本机渠道与续费偏好已更新`,
-      });
-    } catch (error) {
-      toast.error("保存失败", {
-        description: error instanceof Error ? error.message : "未知错误",
-      });
-    } finally {
-      setSaving(false);
-    }
+    await persistAll(Boolean(renewView.consentAt || renewPrefs.consentAt))
   }
 
   return (
-    <div className="space-y-4">
-      <section className="border-2 border-border bg-[#fff7d6] p-3 shadow-shadow">
-        <p className="flex items-start gap-2 text-xs font-bold leading-5 text-foreground/80">
-          <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-          <span>
-            <strong>通知</strong>与<strong>续费</strong>
-            分为两张卡片。通知含本机 + 远程 + 测试；密钥与 Blob
-            Token 在环境变量。
-            {serverError ? (
-              <>
-                <br />
-                加载服务端配置失败：{serverError}{" "}
-                <button
-                  type="button"
-                  className="underline"
-                  onClick={() => void refresh()}
-                >
-                  重试
-                </button>
-              </>
-            ) : null}
-          </span>
-        </p>
-      </section>
+    <>
+      <div className="space-y-4">
+        <SettingsRenewSection serverDraft={renewView} onServerPatch={patchRenew} status={renewStatus} storage={renewStorage} serverLoading={renewLoading && !renewLoaded} />
 
-      <SettingsNotifyCard
-        serverDraft={serverView}
-        onServerPatch={patchServer}
-        localDraft={localView}
-        onLocalPatch={patchLocal}
-        secrets={secrets}
-        storage={storage}
-        serverLoading={serverLoading && !serverLoaded}
-      />
-
-      <SettingsRenewSection draft={localView} onPatch={patchLocal} />
-
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[11px] font-bold text-foreground/60">
-          通知{" "}
-          {serverView.notifyEnabled ? `${serverView.notifyDays} 天` : "关"}
-          {" · "}
-          续费{" "}
-          {localView.autoRenewEnabled ? `${localView.autoRenewDays} 天` : "关"}
-        </p>
-        <Button
-          type="button"
-          size="sm"
-          disabled={saving || (serverLoading && !serverLoaded)}
-          onClick={() => void handleSave()}
-        >
-          <Save className="size-3.5" />
-          {saving ? "保存中…" : "保存全部"}
-        </Button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button type="button" size="sm" disabled={saving || (renewLoading && !renewLoaded)} onClick={() => void handleSave()}>
+            <Save className="size-3.5" />
+            {saving ? '保存中…' : '保存设置'}
+          </Button>
+        </div>
       </div>
-    </div>
-  );
+
+      <SettingsRenewEnableDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        onConfirm={() => {
+          setConfirmOpen(false)
+          const task = pendingSave
+          setPendingSave(null)
+          if (task) void task()
+        }}
+      />
+    </>
+  )
 }

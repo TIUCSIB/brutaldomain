@@ -3,33 +3,34 @@
 import { useCallback, useState } from "react";
 
 import {
-  DEFAULT_SERVER_NOTIFY_PREFS,
-  type ServerNotifyPrefs,
-} from "@/features/settings/server-notify-prefs";
+  DEFAULT_SERVER_RENEW_PREFS,
+  type ServerRenewPrefs,
+} from "@/features/settings/server-renew-prefs";
+import type { RenewHistoryEntry } from "@/lib/renew/renew-state-store";
 import { redirectIfUnauthorized } from "@/lib/api/request-error";
 
-export interface NotifySecretsStatus {
-  telegramConfigured: boolean;
-  emailConfigured: boolean;
-  cronSecretConfigured: boolean;
-  defaultEmail: string | null;
-  defaultTelegramChatId: string | null;
-  fromEmail: string | null;
-  dnsheConfigured?: boolean;
-}
-
-export interface NotifyStorageStatus {
+export interface RenewStorageStatus {
   backend: "blob" | "disk" | "memory";
   blobConfigured: boolean;
-  storePath: string;
 }
 
-export function useServerNotifyPrefs() {
-  const [prefs, setPrefs] = useState<ServerNotifyPrefs>(
-    DEFAULT_SERVER_NOTIFY_PREFS,
+export interface RenewRuntimeStatus {
+  dnsheConfigured: boolean;
+  cronSecretConfigured: boolean;
+  emailConfigured: boolean;
+  telegramConfigured: boolean;
+  fromEmail: string | null;
+  lastRunAt: string | null;
+  nextRunAt: string | null;
+  history: RenewHistoryEntry[];
+}
+
+export function useServerRenewPrefs() {
+  const [prefs, setPrefs] = useState<ServerRenewPrefs>(
+    DEFAULT_SERVER_RENEW_PREFS,
   );
-  const [secrets, setSecrets] = useState<NotifySecretsStatus | null>(null);
-  const [storage, setStorage] = useState<NotifyStorageStatus | null>(null);
+  const [status, setStatus] = useState<RenewRuntimeStatus | null>(null);
+  const [storage, setStorage] = useState<RenewStorageStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,23 +40,21 @@ export function useServerNotifyPrefs() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/settings/notify/prefs", {
+      const response = await fetch("/api/settings/renew/prefs", {
         cache: "no-store",
       });
       if (response.status === 401) {
         redirectIfUnauthorized(new Error("unauthorized"));
         return;
       }
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const payload = (await response.json()) as {
-        prefs: ServerNotifyPrefs;
-        secrets: NotifySecretsStatus;
-        storage?: NotifyStorageStatus;
+        prefs: ServerRenewPrefs;
+        status: RenewRuntimeStatus;
+        storage?: RenewStorageStatus;
       };
       setPrefs(payload.prefs);
-      setSecrets(payload.secrets);
+      setStatus(payload.status);
       if (payload.storage) setStorage(payload.storage);
       setLoaded(true);
     } catch (caught) {
@@ -66,32 +65,32 @@ export function useServerNotifyPrefs() {
     }
   }, []);
 
-  const save = useCallback(async (next: ServerNotifyPrefs) => {
-    const response = await fetch("/api/settings/notify/prefs", {
+  const save = useCallback(async (next: ServerRenewPrefs) => {
+    const response = await fetch("/api/settings/renew/prefs", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(next),
     });
     const payload = (await response.json().catch(() => ({}))) as {
       message?: string;
-      prefs?: ServerNotifyPrefs;
-      secrets?: NotifySecretsStatus;
-      storage?: NotifyStorageStatus;
+      prefs?: ServerRenewPrefs;
+      status?: RenewRuntimeStatus;
+      storage?: RenewStorageStatus;
       warning?: string | null;
       persisted?: boolean;
       persistedToDisk?: boolean;
       persistedToBlob?: boolean;
-      backend?: NotifyStorageStatus["backend"];
+      backend?: RenewStorageStatus["backend"];
     };
     if (response.status === 401) {
       redirectIfUnauthorized(new Error("unauthorized"));
       throw new Error("unauthorized");
     }
-    if (!response.ok || !payload.prefs) {
+    if (!response.ok || !payload.prefs || !payload.status) {
       throw new Error(payload.message || `保存失败 HTTP ${response.status}`);
     }
     setPrefs(payload.prefs);
-    if (payload.secrets) setSecrets(payload.secrets);
+    setStatus(payload.status);
     if (payload.storage) setStorage(payload.storage);
     setPersistedWarning(payload.warning ?? null);
     setLoaded(true);
@@ -100,7 +99,7 @@ export function useServerNotifyPrefs() {
 
   return {
     prefs,
-    secrets,
+    status,
     storage,
     loading,
     loaded,

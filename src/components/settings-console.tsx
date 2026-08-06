@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { BellRing, KeyRound, RefreshCw, Wallet } from "lucide-react";
+import { KeyRound, RefreshCw, RotateCw, Wallet } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { ConfigErrorBanner } from "@/components/config-error-banner";
@@ -148,8 +148,8 @@ export function SettingsConsole() {
               配额
             </TabsTrigger>
             <TabsTrigger value="automation">
-              <BellRing className="size-3.5" />
-              通知与续费
+              <RotateCw className="size-3.5" />
+              自动续费
             </TabsTrigger>
           </TabsList>
 

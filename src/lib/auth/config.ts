@@ -1,5 +1,10 @@
 import "server-only";
 
+import {
+  readAllowedGitHubUsers,
+  requireGitHubAllowlistInProduction,
+} from "@/lib/auth/allowed-users";
+
 export interface GitHubAuthConfig {
   clientId: string;
   clientSecret: string;
@@ -7,31 +12,22 @@ export interface GitHubAuthConfig {
   allowedUsers: string[];
 }
 
-function parseAllowedUsers(value: string | undefined): string[] {
-  if (!value?.trim()) return [];
-  return value
-    .split(",")
-    .map((item) => item.trim().toLowerCase())
-    .filter(Boolean);
-}
-
 export function readGitHubAuthConfig(): GitHubAuthConfig | null {
   const clientId = process.env.GITHUB_CLIENT_ID?.trim();
   const clientSecret = process.env.GITHUB_CLIENT_SECRET?.trim();
-  const secret =
-    process.env.AUTH_SECRET?.trim() ||
-    process.env.DNSHE_API_SECRET?.trim() ||
-    "";
+  const secret = process.env.AUTH_SECRET?.trim() || "";
+  const allowedUsers = readAllowedGitHubUsers();
 
   if (!clientId || !clientSecret || !secret) return null;
+  if (requireGitHubAllowlistInProduction() && allowedUsers.length === 0) {
+    return null;
+  }
 
   return {
     clientId,
     clientSecret,
     secret,
-    allowedUsers: parseAllowedUsers(
-      process.env.GITHUB_ALLOWED_USERS || process.env.AUTH_ALLOWED_GITHUB_USERS,
-    ),
+    allowedUsers,
   };
 }
 
@@ -47,12 +43,4 @@ export function getGitHubAuthConfig(): GitHubAuthConfig {
     );
   }
   return config;
-}
-
-export function isGitHubUserAllowed(
-  login: string,
-  allowedUsers: string[],
-): boolean {
-  if (allowedUsers.length === 0) return true;
-  return allowedUsers.includes(login.trim().toLowerCase());
 }

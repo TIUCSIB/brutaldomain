@@ -10,6 +10,11 @@ export interface GitHubUser {
 }
 
 function getOrigin(request: Request): string {
+  const canonical = process.env.APP_URL?.trim();
+  if (canonical) {
+    return new URL(canonical).origin;
+  }
+
   const url = new URL(request.url);
   const forwardedHost = request.headers.get("x-forwarded-host");
   const forwardedProto = request.headers.get("x-forwarded-proto");

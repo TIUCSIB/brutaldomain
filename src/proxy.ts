@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { AUTH_UNAUTHORIZED_MESSAGE } from '@/lib/auth/constants'
 import { getSessionCookieValue, readEdgeAuthSecret, verifyEdgeSessionToken } from '@/lib/auth/edge'
 
-const PROTECTED_PAGE_PREFIXES = ['/dashboard', '/domains', '/whois', '/settings']
+const PROTECTED_PAGE_PREFIXES = ['/dashboard', '/domains', '/whois', '/settings', '/dns']
 
 function isProtectedPage(pathname: string): boolean {
   return PROTECTED_PAGE_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))

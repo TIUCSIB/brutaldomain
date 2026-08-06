@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
 
 import { DnsheDomainRepository } from "@/features/domains/dnshe-domain-repository";
+import {
+  badRequest,
+  logServerError,
+  upstreamFailure,
+} from "@/lib/api/response";
+import { requireAuthenticatedMutation } from "@/lib/auth/route-guard";
 import { DNSHE_NOT_CONFIGURED_MESSAGE } from "@/lib/api/dnshe-config-error";
 import { isDnsheConfigured } from "@/lib/env/server-env";
+import { enforceRateLimit } from "@/lib/security/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -12,9 +19,21 @@ function getDomainId(value: string): number | null {
 }
 
 export async function POST(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  const auth = await requireAuthenticatedMutation(request);
+  if (!auth.ok) return auth.response;
+
+  const limited = await enforceRateLimit({
+    identifier: auth.session.username,
+    key: "domains:renew",
+    limit: 5,
+    message: "续费请求过于频繁，请稍后再试",
+    windowMs: 10 * 60 * 1000,
+  });
+  if (limited) return limited;
+
   if (!isDnsheConfigured()) {
     return NextResponse.json(
       { message: DNSHE_NOT_CONFIGURED_MESSAGE },
@@ -26,7 +45,7 @@ export async function POST(
   const domainId = getDomainId(id);
 
   if (!domainId) {
-    return NextResponse.json({ message: "Invalid domain id" }, { status: 400 });
+    return badRequest("Invalid domain id");
   }
 
   const repository = new DnsheDomainRepository();
@@ -35,7 +54,7 @@ export async function POST(
     const result = await repository.renewDomain(domainId);
     return NextResponse.json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Renew failed";
-    return NextResponse.json({ message }, { status: 502 });
+    logServerError("domains:renew", error);
+    return upstreamFailure("域名续费失败");
   }
 }
