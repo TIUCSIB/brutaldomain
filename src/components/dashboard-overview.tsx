@@ -11,7 +11,6 @@ import {
   RefreshCw,
 } from "lucide-react";
 
-import { AppShell } from "@/components/app-shell";
 import { ConfigErrorBanner } from "@/components/config-error-banner";
 import {
   AttentionCard,
@@ -147,8 +146,7 @@ export function DashboardOverview() {
   }
 
   return (
-    <AppShell>
-      <div className="mx-auto w-full max-w-[1280px] space-y-4">
+    <div className="mx-auto w-full max-w-[1280px] space-y-4">
         <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <span className="inline-block -rotate-1 border-2 border-border bg-[#ffd84d] px-2.5 py-0.5 text-[11px] font-black uppercase tracking-[0.14em] shadow-shadow">
@@ -246,7 +244,6 @@ export function DashboardOverview() {
             <DashboardQuickLinks />
           </div>
         </section>
-      </div>
-    </AppShell>
+    </div>
   );
 }

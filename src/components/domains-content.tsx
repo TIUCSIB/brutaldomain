@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { AppShell } from "@/components/app-shell";
 import { ConfigErrorBanner } from "@/components/config-error-banner";
 import { DomainFilters } from "@/components/domain-filters";
 import {
@@ -178,8 +177,7 @@ export function DomainsContent() {
   }
 
   return (
-    <AppShell>
-      <div className="mx-auto w-full max-w-[1280px] space-y-4">
+    <div className="mx-auto w-full max-w-[1280px] space-y-4">
         <PageHeader
           eyebrow="域名资产"
           title="域名管理"
@@ -273,7 +271,6 @@ export function DomainsContent() {
             setParams({ page: String(currentPage + 1) }, { resetPage: false })
           }
         />
-      </div>
-    </AppShell>
+    </div>
   );
 }
