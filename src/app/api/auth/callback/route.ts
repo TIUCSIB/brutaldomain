@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 
-import {
-  getGitHubAuthConfig,
-  isAuthConfigured,
-  isGitHubUserAllowed,
-} from "@/lib/auth/config";
+import { isGitHubUserAllowed } from "@/lib/auth/allowed-users";
+import { getGitHubAuthConfig, isAuthConfigured } from "@/lib/auth/config";
 import {
   exchangeGitHubCode,
   fetchGitHubUser,

@@ -58,6 +58,5 @@ export function isCronAuthorized(request: Request): boolean {
     request.headers.get("x-cron-secret")?.trim() ||
     request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ||
     null;
-  const query = new URL(request.url).searchParams.get("secret")?.trim() || null;
-  return header === secret || query === secret;
+  return header === secret;
 }

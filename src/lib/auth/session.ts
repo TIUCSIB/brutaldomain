@@ -10,6 +10,7 @@ import {
   AUTH_STATE_COOKIE_NAME,
   AUTH_STATE_TTL_SECONDS,
 } from "@/lib/auth/constants";
+import { isGitHubUserAllowed } from "@/lib/auth/allowed-users";
 import { getGitHubAuthConfig, readGitHubAuthConfig } from "@/lib/auth/config";
 
 export interface SessionPayload {
@@ -87,7 +88,10 @@ export async function getSession(): Promise<SessionPayload | null> {
   const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
   if (!token) return null;
 
-  return verifySessionToken(token, config.secret);
+  const session = verifySessionToken(token, config.secret);
+  if (!session) return null;
+  if (!isGitHubUserAllowed(session.username, config.allowedUsers)) return null;
+  return session;
 }
 
 export async function setSessionCookie(

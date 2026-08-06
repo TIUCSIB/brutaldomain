@@ -34,6 +34,26 @@ import type {
   UpdateDnsRecordInput,
 } from "./types";
 
+export interface DnsheRenewReceipt {
+  detail: DomainDetailApiResponse;
+  previousExpiresAt: string;
+  newExpiresAt: string;
+  renewedAt: string;
+  chargedAmount: string | number;
+}
+
+export class DnsheRenewalRefreshError extends Error {
+  readonly receipt: Omit<DnsheRenewReceipt, "detail">;
+  readonly cause: unknown;
+
+  constructor(receipt: Omit<DnsheRenewReceipt, "detail">, cause: unknown) {
+    super("DNSHE renewal succeeded but the renewed domain could not be refreshed.");
+    this.name = "DnsheRenewalRefreshError";
+    this.receipt = receipt;
+    this.cause = cause;
+  }
+}
+
 async function listDnsRecordsForDomain(domainId: number): Promise<DnsRecord[]> {
   const client = createDnsheClient();
   const response = await client.request<DnsheListDnsRecordsResponse>({
@@ -137,16 +157,37 @@ export class DnsheDomainRepository implements DomainRepository {
     });
   }
 
-  async renewDomain(domainId: number): Promise<DomainDetailApiResponse> {
+  async renewDomainWithReceipt(domainId: number): Promise<DnsheRenewReceipt> {
     const client = createDnsheClient();
-    await client.request<DnsheRenewSubdomainResponse, DnsheRenewSubdomainBody>({
+    const response = await client.request<
+      DnsheRenewSubdomainResponse,
+      DnsheRenewSubdomainBody
+    >({
       endpoint: "subdomains",
       action: "renew",
       method: "POST",
       body: { subdomain_id: domainId },
     });
+    const receipt = {
+      previousExpiresAt: response.previous_expires_at,
+      newExpiresAt: response.new_expires_at,
+      renewedAt: response.renewed_at,
+      chargedAmount: response.charged_amount,
+    };
 
-    return this.getDomain(domainId);
+    try {
+      return {
+        detail: await this.getDomain(domainId),
+        ...receipt,
+      };
+    } catch (error) {
+      throw new DnsheRenewalRefreshError(receipt, error);
+    }
+  }
+
+  async renewDomain(domainId: number): Promise<DomainDetailApiResponse> {
+    const result = await this.renewDomainWithReceipt(domainId);
+    return result.detail;
   }
 
   async createDnsRecord(

@@ -5,7 +5,7 @@ export const AUTH_SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 export const AUTH_STATE_TTL_SECONDS = 60 * 10;
 
 export const AUTH_NOT_CONFIGURED_MESSAGE =
-  "GitHub OAuth is not configured. Set GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, and AUTH_SECRET.";
+  "GitHub OAuth is not configured. Set GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, AUTH_SECRET, and GITHUB_ALLOWED_USERS in production.";
 
 export const AUTH_UNAUTHORIZED_MESSAGE =
   "需要登录后才能访问";

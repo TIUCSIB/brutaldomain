@@ -1,8 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/cron/expiry-notify",
-      "schedule": "0 1 * * *"
+      "path": "/api/cron/auto-renew",
+      "schedule": "0 1 1,11,21 * *"
     }
   ]
 }
