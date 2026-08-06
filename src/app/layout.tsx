@@ -1,6 +1,19 @@
 import type { Metadata, Viewport } from 'next'
+import { JetBrains_Mono, Space_Grotesk } from 'next/font/google'
 
 import './globals.css'
+
+const appFont = Space_Grotesk({
+  display: 'swap',
+  subsets: ['latin'],
+  variable: '--font-app',
+})
+
+const codeFont = JetBrains_Mono({
+  display: 'swap',
+  subsets: ['latin'],
+  variable: '--font-code',
+})
 
 export const metadata: Metadata = {
   title: {
@@ -22,18 +35,11 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="zh-CN" className="h-full">
-      <body
-        className="min-h-full"
-        style={
-          {
-            '--font-app': 'Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif',
-            '--font-code': '"SFMono-Regular", Consolas, "Liberation Mono", monospace',
-          } as React.CSSProperties
-        }
-      >
-        {children}
-      </body>
+    <html
+      lang="zh-CN"
+      className={`${appFont.variable} ${codeFont.variable} h-full`}
+    >
+      <body className="min-h-full">{children}</body>
     </html>
   )
 }

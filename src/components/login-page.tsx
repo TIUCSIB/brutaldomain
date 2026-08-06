@@ -95,7 +95,7 @@ export function LoginPage({ error, nextPath }: LoginPageProps) {
             : null}
 
             <Button asChild className={`h-12 w-full bg-slate-950 text-base text-white hover:bg-slate-800 ${hardButton}`}>
-              <Link href={githubHref}>
+              <Link href={githubHref} prefetch={false}>
                 <GitHubMark />
                 使用 GitHub 登录
               </Link>
