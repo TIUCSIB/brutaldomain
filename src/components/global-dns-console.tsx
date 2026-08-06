@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { Loader2, Radar, RefreshCw, Search } from "lucide-react";
 
-import { AppShell } from "@/components/app-shell";
 import { ConfigErrorBanner } from "@/components/config-error-banner";
 import {
   GlobalDnsResults,
@@ -136,8 +135,7 @@ export function GlobalDnsConsole() {
   }
 
   return (
-    <AppShell>
-      <div className="mx-auto w-full max-w-[1280px] space-y-4">
+    <div className="mx-auto w-full max-w-[1280px] space-y-4">
         <PageHeader
           eyebrow="DNS"
           title="全局 DNS 搜索"
@@ -229,7 +227,6 @@ export function GlobalDnsConsole() {
         </section>
 
         <GlobalDnsResults hits={filteredHits} hasScanned={hasScanned} />
-      </div>
-    </AppShell>
+    </div>
   );
 }

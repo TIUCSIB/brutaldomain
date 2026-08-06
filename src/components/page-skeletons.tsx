@@ -1,4 +1,3 @@
-import { AppShell } from "@/components/app-shell";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function Shell({
@@ -9,15 +8,13 @@ function Shell({
   children: React.ReactNode;
 }) {
   return (
-    <AppShell>
-      <div
-        aria-busy="true"
-        aria-label={label}
-        className="mx-auto w-full max-w-[1280px] space-y-4"
-      >
-        {children}
-      </div>
-    </AppShell>
+    <div
+      aria-busy="true"
+      aria-label={label}
+      className="mx-auto w-full max-w-[1280px] space-y-4"
+    >
+      {children}
+    </div>
   );
 }
 

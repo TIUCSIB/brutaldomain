@@ -3,7 +3,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { KeyRound, RefreshCw, RotateCw, Wallet } from "lucide-react";
 
-import { AppShell } from "@/components/app-shell";
 import { ConfigErrorBanner } from "@/components/config-error-banner";
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { PageHeader } from "@/components/page-header";
@@ -112,8 +111,7 @@ export function SettingsConsole() {
   }
 
   return (
-    <AppShell>
-      <div className="mx-auto w-full max-w-[1280px] space-y-4">
+    <div className="mx-auto w-full max-w-[1280px] space-y-4">
         <PageHeader
           eyebrow="设置"
           title="DNSHE 工具台"
@@ -234,7 +232,6 @@ export function SettingsConsole() {
           }
           onConfirm={() => void confirmPendingAction()}
         />
-      </div>
-    </AppShell>
+    </div>
   );
 }

@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ActivityTimeline } from "@/components/activity-timeline";
-import { AppShell } from "@/components/app-shell";
 import { ConfigErrorBanner } from "@/components/config-error-banner";
 import {
   DomainDetailHeader,
@@ -78,12 +77,10 @@ export function DomainDetailClient({ id }: DomainDetailClientProps) {
 
   if (!domain) {
     return (
-      <AppShell>
-        <div className="mx-auto w-full max-w-[1280px] space-y-4">
-          <ConfigErrorBanner error={error} />
-          <NotFoundState id={id} />
-        </div>
-      </AppShell>
+      <div className="mx-auto w-full max-w-[1280px] space-y-4">
+        <ConfigErrorBanner error={error} />
+        <NotFoundState id={id} />
+      </div>
     );
   }
 
@@ -164,8 +161,7 @@ export function DomainDetailClient({ id }: DomainDetailClientProps) {
   }
 
   return (
-    <AppShell>
-      <div className="mx-auto w-full max-w-[1280px] space-y-4">
+    <div className="mx-auto w-full max-w-[1280px] space-y-4">
         <ConfigErrorBanner error={error} />
         <DomainDetailHeader
           busyAction={busyAction}
@@ -228,7 +224,6 @@ export function DomainDetailClient({ id }: DomainDetailClientProps) {
             />
           </TabsContent>
         </Tabs>
-      </div>
-    </AppShell>
+    </div>
   );
 }

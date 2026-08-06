@@ -3,7 +3,6 @@
 import { useMemo, useState, useSyncExternalStore, type FormEvent } from "react";
 import { Download, ListOrdered, Radar } from "lucide-react";
 
-import { AppShell } from "@/components/app-shell";
 import { PageHeader } from "@/components/page-header";
 import { WhoisSkeleton } from "@/components/page-skeletons";
 import {
@@ -154,8 +153,7 @@ export function WhoisConsole() {
   if (!hydrated) return <WhoisSkeleton />;
 
   return (
-    <AppShell>
-      <div className="mx-auto w-full max-w-[1280px] space-y-4">
+    <div className="mx-auto w-full max-w-[1280px] space-y-4">
         <PageHeader
           eyebrow="工具"
           title="WHOIS 查询"
@@ -277,7 +275,6 @@ export function WhoisConsole() {
             </div>
           </section>
         )}
-      </div>
-    </AppShell>
+    </div>
   );
 }
